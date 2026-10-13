@@ -1,4 +1,4 @@
-# Aramco Predictive Maintenance Dashboard
+# MotorSense IoT – Motor Health Dashboard
 
 Production-grade Django web application for predictive maintenance using LSTM models.
 
@@ -6,7 +6,7 @@ Production-grade Django web application for predictive maintenance using LSTM mo
 - Django 4.2
 - PostgreSQL + TimescaleDB
 - TensorFlow/Keras
-- Bootstrap 5 (Aramco branded)
+- Bootstrap 5
 
 ## Setup Instructions
 1. Clone repository
@@ -19,7 +19,7 @@ Production-grade Django web application for predictive maintenance using LSTM mo
 
 ## Project Structure
 - `dashboard/` - Main application
-- `aramco_maintenance/` - Project settings
+- `monitor/` - Project settings
 - `static/` - CSS, JS, images
 - `templates/` - HTML templates
 - `ml_models/` - Trained models and scalers

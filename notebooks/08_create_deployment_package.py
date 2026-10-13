@@ -107,7 +107,7 @@ from typing import List
 import uvicorn
 
 # Initialize FastAPI
-app = FastAPI(title="Aramco Predictive Maintenance API")
+app = FastAPI(title="MotorSense IoT Predictive Maintenance API")
 
 # Load model and scaler at startup
 print("Loading model and scaler...")
@@ -134,7 +134,7 @@ class PredictionResponse(BaseModel):
 @app.get("/")
 def root():
     return {
-        "service": "Aramco Predictive Maintenance API",
+        "service": "MotorSense IoT Predictive Maintenance API",
         "version": "1.0",
         "model_performance": config['performance'],
         "status": "operational"
@@ -207,7 +207,7 @@ def model_info():
 
 if __name__ == "__main__":
     print("="*70)
-    print("🚀 STARTING ARAMCO PREDICTIVE MAINTENANCE SERVICE")
+    print("🚀 STARTING MOTORSENSE IOT PREDICTIVE MAINTENANCE SERVICE")
     print("="*70)
     print(f"Model Performance: RMSE={config['performance']['validation_rmse']} cycles")
     print(f"Alert Thresholds: Critical<{config['alert_thresholds']['critical']}, "
@@ -253,7 +253,7 @@ print("=" * 70)
 
 guide = '''# 🚀 RASPBERRY PI DEPLOYMENT GUIDE
 
-## Aramco Predictive Maintenance System
+## MotorSense IoT Predictive Maintenance System
 
 ### Files in this Package:
 - `model.keras` - Trained LSTM model (Validation RMSE: 15.46 cycles)
@@ -369,7 +369,7 @@ sudo nano /etc/systemd/system/predictive-maintenance.service
 ```
 ```ini
 [Unit]
-Description=Aramco Predictive Maintenance Service
+Description=MotorSense IoT Predictive Maintenance Service
 After=network.target
 
 [Service]
@@ -412,7 +412,7 @@ sudo systemctl status predictive-maintenance
 
 ---
 
-**For support: Contact AI Team | Saudi Aramco Digital Transformation**
+**For support: Contact the MotorSense IoT team**
 '''
 
 guide_path = deploy_dir / 'DEPLOYMENT_GUIDE.md'
@@ -449,7 +449,7 @@ print("   5. ⏳ Start inference service")
 print("   6. ⏳ Connect Pico sensors")
 
 print("\n💡 TO TRANSFER TO RASPBERRY PI:")
-print("   cd ~/AramcoPredictiveMaintenance")
+print("   cd ~/MotorSensePredictiveMaintenance")
 print("   scp -r deployment/* pi@raspberrypi.local:~/predictive_maintenance/")
 
 print("\n" + "=" * 70)

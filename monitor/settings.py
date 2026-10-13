@@ -1,5 +1,5 @@
 """
-Django settings for aramco_maintenance project.
+Django settings for monitor project.
 """
 
 from pathlib import Path
@@ -45,7 +45,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'aramco_maintenance.urls'
+ROOT_URLCONF = 'monitor.urls'
 
 TEMPLATES = [
     {
@@ -63,17 +63,17 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'aramco_maintenance.wsgi.application'
+WSGI_APPLICATION = 'monitor.wsgi.application'
 
 # Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'aramco_maintenance',
-        'USER': 'aramco_admin',
-        'PASSWORD': 'your_secure_password_here',
-        'HOST': 'localhost',  # Docker expose le port 5432
-        'PORT': '5432',
+        'NAME': config('DB_NAME', default='motorsense_db'),
+        'USER': config('DB_USER', default='motorsense_user'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),  # Docker expose le port 5432
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
 
@@ -99,7 +99,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Riyadh'  # Aramco timezone
+TIME_ZONE = 'Asia/Riyadh'
 USE_I18N = True
 USE_TZ = True
 
