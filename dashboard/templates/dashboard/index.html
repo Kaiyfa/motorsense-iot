@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Home - Aramco Predictive Maintenance{% endblock %}
+{% block title %}Home - MotorSense IoT{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
@@ -21,9 +21,9 @@
             <!-- Features Grid -->
             <div class="row g-4 mb-5">
                 <div class="col-md-4">
-                    <div class="card-aramco h-100 text-center p-4">
+                    <div class="card-ms h-100 text-center p-4">
                         <div class="mb-3">
-                            <i class="bi bi-activity" style="font-size: 3rem; color: var(--aramco-primary);"></i>
+                            <i class="bi bi-activity" style="font-size: 3rem; color: var(--ms-primary);"></i>
                         </div>
                         <h5 class="fw-bold">Real-Time Monitoring</h5>
                         <p class="text-muted">
@@ -33,9 +33,9 @@
                 </div>
                 
                 <div class="col-md-4">
-                    <div class="card-aramco h-100 text-center p-4">
+                    <div class="card-ms h-100 text-center p-4">
                         <div class="mb-3">
-                            <i class="bi bi-lightning-charge" style="font-size: 3rem; color: var(--aramco-chart-3);"></i>
+                            <i class="bi bi-lightning-charge" style="font-size: 3rem; color: var(--ms-chart-3);"></i>
                         </div>
                         <h5 class="fw-bold">Failure Prediction</h5>
                         <p class="text-muted">
@@ -45,9 +45,9 @@
                 </div>
                 
                 <div class="col-md-4">
-                    <div class="card-aramco h-100 text-center p-4">
+                    <div class="card-ms h-100 text-center p-4">
                         <div class="mb-3">
-                            <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--aramco-chart-2);"></i>
+                            <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--ms-chart-2);"></i>
                         </div>
                         <h5 class="fw-bold">Advanced Analytics</h5>
                         <p class="text-muted">
@@ -60,12 +60,12 @@
             <!-- CTA Button -->
             <div class="text-center">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-aramco-primary btn-lg px-5">
+                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-ms-primary btn-lg px-5">
                         <i class="bi bi-speedometer2 me-2"></i>
                         Go to Dashboard
                     </a>
                 {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-aramco-primary btn-lg px-5">
+                    <a href="{% url 'login' %}" class="btn btn-ms-primary btn-lg px-5">
                         <i class="bi bi-box-arrow-in-right me-2"></i>
                         Login to Continue
                     </a>

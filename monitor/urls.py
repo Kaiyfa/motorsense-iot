@@ -1,6 +1,6 @@
 """
 Main Project URL Configuration with Authentication
-URL configuration for aramco_maintenance project.
+URL configuration for monitor project.
 """
 from django.contrib import admin
 from django.urls import path, include

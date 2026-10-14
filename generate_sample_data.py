@@ -14,7 +14,7 @@ import sys
 import django
 from django.utils import timezone
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aramco_maintenance.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'monitor.settings')
 django.setup()
 
 from dashboard.models import SensorData, Equipment
