@@ -463,6 +463,53 @@ body {
         gap: 1rem;
     }
 }
+/* ============================================================================
+   HONEST LIVE VIEW
+   ============================================================================ */
+
+.sensor-readings-grid.four-up,
+.live-charts-grid.four-up {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.sensor-value.no-data {
+    color: var(--muted-foreground);
+}
+
+.no-data-banner {
+    margin-bottom: 2rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 2px solid var(--live-red);
+    border-radius: 0.75rem;
+    color: var(--live-red);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.no-data-banner.hidden {
+    display: none;
+}
+
+.model-placeholder {
+    margin-bottom: 2rem;
+    padding: 2.5rem;
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 0.75rem;
+    color: var(--muted-foreground);
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.chart-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted-foreground);
+}
 </style>
 {% endblock %}
 
@@ -475,139 +522,82 @@ body {
         <div class="live-header-left">
             <div class="live-status-indicator" id="liveStatusIndicator">
                 <div class="live-dot" id="liveDot"></div>
-                <span class="live-status-text" id="liveStatusText">LIVE DATA STREAMING</span>
+                <span class="live-status-text" id="liveStatusText">WAITING FOR DATA</span>
             </div>
             
             <div class="equipment-info">
-                <h1 id="equipmentTitle">Pump EQ-006</h1>
-                <p id="equipmentLocation">Ghawar Field • Live Monitoring</p>
+                <h1 id="equipmentTitle">Motor testbed EQ-001</h1>
+                <p id="equipmentSubtitle">Live sensors (Raspberry Pi) • stored readings only</p>
             </div>
         </div>
         
         <div class="live-header-right">
             <span style="font-size: 0.875rem; color: var(--muted-foreground);">Logged in as <strong>{{ user.username }}</strong></span>
             <a href="{% url 'dashboard:dashboard' %}" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; background: var(--card); border: 1px solid var(--border); color: var(--foreground); text-decoration: none; border-radius: 0.5rem;">
-                ← Historical Dashboard
+                ← Main Dashboard
             </a>
-            <button id="controlButton" class="control-button start">
+            <button id="controlButton" class="control-button stop">
                 <span id="controlIcon">⏸</span>
                 <span id="controlText">STOP</span>
             </button>
         </div>
     </div>
 
-    <!-- Live Sensor Readings -->
-    <div class="sensor-readings-grid">
-        <!-- Temperature -->
+    <!-- Shown when no reading arrived in the last 15 seconds -->
+    <div class="no-data-banner hidden" id="noDataBanner">
+        No data received. <span id="lastReadingText">No reading has been stored yet.</span>
+    </div>
+
+    <!-- Live Sensor Readings (measured values only) -->
+    <div class="sensor-readings-grid four-up">
         <div class="sensor-reading-card" id="tempCard">
             <div class="sensor-label">🌡️ TEMPERATURE</div>
-            <div class="sensor-value" id="tempValue">--<span class="sensor-unit">°C</span></div>
-            <div class="sensor-status">
-                <div class="sensor-status-dot" id="tempStatusDot"></div>
-                <span id="tempStatus">Normal</span>
-            </div>
+            <div class="sensor-value no-data"><span id="tempValue">--</span><span class="sensor-unit">°C</span></div>
+            <div class="sensor-status"><span id="tempStatus">Waiting for data...</span></div>
         </div>
         
-        <!-- Vibration -->
         <div class="sensor-reading-card" id="vibrationCard">
             <div class="sensor-label">📊 VIBRATION (RMS)</div>
-            <div class="sensor-value" id="vibrationValue">--<span class="sensor-unit">g</span></div>
-            <div class="sensor-status">
-                <div class="sensor-status-dot" id="vibrationStatusDot"></div>
-                <span id="vibrationStatus">Normal</span>
-            </div>
+            <div class="sensor-value no-data"><span id="vibrationValue">--</span><span class="sensor-unit">g</span></div>
+            <div class="sensor-status"><span id="vibrationStatus">Waiting for data...</span></div>
         </div>
         
-        <!-- Current -->
         <div class="sensor-reading-card" id="currentCard">
             <div class="sensor-label">⚡ CURRENT</div>
-            <div class="sensor-value" id="currentValue">--<span class="sensor-unit">A</span></div>
-            <div class="sensor-status">
-                <div class="sensor-status-dot" id="currentStatusDot"></div>
-                <span id="currentStatus">Normal</span>
-            </div>
+            <div class="sensor-value no-data"><span id="currentValue">--</span><span class="sensor-unit">A</span></div>
+            <div class="sensor-status"><span id="currentStatus">Waiting for data...</span></div>
+        </div>
+
+        <div class="sensor-reading-card" id="busVoltageCard">
+            <div class="sensor-label">🔋 BUS VOLTAGE</div>
+            <div class="sensor-value no-data"><span id="busVoltageValue">--</span><span class="sensor-unit">V</span></div>
+            <div class="sensor-status"><span id="busVoltageStatus">Waiting for data...</span></div>
         </div>
     </div>
 
-    <!-- RUL Prediction Section -->
-    <div class="rul-prediction-section">
-        <div class="rul-gauge-card">
-            <div class="rul-gauge-label">PREDICTED RUL</div>
-            <div class="rul-gauge-value" id="rulValue">--</div>
-            <div class="rul-gauge-subtitle">CYCLES</div>
-            <div class="rul-update-time" id="rulUpdateTime">Last updated: Never</div>
-        </div>
-        
-        <div class="prediction-metrics-card">
-            <div class="prediction-metrics-grid">
-                <div class="prediction-metric">
-                    <div class="prediction-metric-label">CONFIDENCE</div>
-                    <div class="prediction-metric-value" id="confidenceValue">--%</div>
-                    <div class="prediction-metric-subtitle" id="confidenceLevel">--</div>
-                </div>
-                
-                <div class="prediction-metric">
-                    <div class="prediction-metric-label">STATUS</div>
-                    <div class="prediction-metric-value" style="font-size: 1.5rem;" id="statusValue">--</div>
-                    <div class="prediction-metric-subtitle">Equipment Health</div>
-                </div>
-                
-                <div class="prediction-metric">
-                    <div class="prediction-metric-label">DATA SOURCE</div>
-                    <div class="prediction-metric-value" style="font-size: 1.5rem;" id="dataSourceValue">🔴 LIVE</div>
-                    <div class="prediction-metric-subtitle" id="readingCount">0 readings</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Replaces the RUL / confidence / health section -->
+    <div class="model-placeholder" id="modelPlaceholder">Anomaly model not trained yet</div>
 
-    <!-- Live Charts -->
+    <!-- Live Charts (stored readings from the last 60 seconds) -->
     <div class="live-charts-section">
-        <h2 class="section-title">Real-Time Sensor Trends (Last 60 Seconds)</h2>
+        <h2 class="section-title">Measured Sensor Trends (Last 60 Seconds)</h2>
         
-        <div class="live-charts-grid">
-            <!-- Temperature Chart -->
+        <div class="live-charts-grid four-up">
             <div class="live-chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">Temperature</div>
-                    <div class="chart-threshold">Threshold: 85°C</div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="tempChart"></canvas>
-                </div>
+                <div class="chart-header"><div class="chart-title">Temperature (°C)</div></div>
+                <div class="chart-container"><canvas id="tempChart"></canvas></div>
             </div>
-            
-            <!-- Vibration Chart -->
             <div class="live-chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">Vibration (RMS)</div>
-                    <div class="chart-threshold">Threshold: 2.5g</div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="vibrationChart"></canvas>
-                </div>
+                <div class="chart-header"><div class="chart-title">Vibration RMS (g)</div></div>
+                <div class="chart-container"><canvas id="vibrationChart"></canvas></div>
             </div>
-            
-            <!-- Current Chart -->
             <div class="live-chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">Current</div>
-                    <div class="chart-threshold">Threshold: 10A</div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="currentChart"></canvas>
-                </div>
+                <div class="chart-header"><div class="chart-title">Current (A)</div></div>
+                <div class="chart-container"><canvas id="currentChart"></canvas></div>
             </div>
-        </div>
-    </div>
-
-    <!-- Active Alerts -->
-    <div class="alerts-section">
-        <h2 class="section-title">Active Alerts</h2>
-        <div class="alerts-grid" id="alertsContainer">
-            <div class="no-alerts">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                <div>No active alerts. All systems normal.</div>
+            <div class="live-chart-card">
+                <div class="chart-header"><div class="chart-title">Bus Voltage (V)</div></div>
+                <div class="chart-container"><canvas id="busVoltageChart"></canvas></div>
             </div>
         </div>
     </div>
@@ -619,33 +609,31 @@ body {
 <script>
 // ============================================================================
 // LIVE DASHBOARD - JAVASCRIPT
-// Handles real-time sensor monitoring and chart updates
+// Shows only readings stored by /api/ingest/. Nothing is simulated here.
 // ============================================================================
 
 let liveState = {
     isMonitoring: true,
-    equipmentId: 'EQ-006',
-    equipmentType: 'Pump',
-    location: 'Ghawar Field',
+    equipmentId: 'EQ-001',
     
     // Polling intervals
     sensorPollInterval: null,
-    predictionPollInterval: null,
     historyPollInterval: null,
     
     // Charts
     charts: {},
     
-    // Data
-    currentReading: null,
-    currentPrediction: null,
-    alerts: [],
-    
     // Settings
-    sensorRefreshRate: 2000,      // 2 seconds
-    predictionRefreshRate: 300000, // 5 minutes
-    historyRefreshRate: 5000,      // 5 seconds
+    sensorRefreshRate: 2000,   // 2 seconds
+    historyRefreshRate: 5000,  // 5 seconds
 };
+
+const SENSOR_FIELDS = [
+    { key: 'temperature', valueId: 'tempValue', statusId: 'tempStatus', digits: 1, chart: 'temperature' },
+    { key: 'vibration_rms', valueId: 'vibrationValue', statusId: 'vibrationStatus', digits: 3, chart: 'vibration' },
+    { key: 'current', valueId: 'currentValue', statusId: 'currentStatus', digits: 3, chart: 'current' },
+    { key: 'bus_voltage', valueId: 'busVoltageValue', statusId: 'busVoltageStatus', digits: 2, chart: 'busVoltage' },
+];
 
 // ============================================================================
 // INITIALIZATION
@@ -656,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initializeCharts();
     setupEventListeners();
+    fetchPredictionStatus();
     startMonitoring();
     
     console.log('✅ Live Dashboard ready');
@@ -665,131 +654,48 @@ document.addEventListener('DOMContentLoaded', function() {
 // CHART INITIALIZATION
 // ============================================================================
 
-function initializeCharts() {
-    const chartConfig = {
+function makeChart(canvasId, label, color) {
+    return new Chart(document.getElementById(canvasId), {
         type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: label,
+                data: [],
+                borderColor: color,
+                borderWidth: 2,
+                tension: 0.2,
+                pointRadius: 0,
+                spanGaps: false,
+            }]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 0 // No animation for real-time
-            },
+            animation: { duration: 0 },
             plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                }
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false }
             },
             scales: {
                 x: {
-                    type: 'time',
-                    time: {
-                        unit: 'second',
-                        displayFormats: {
-                            second: 'HH:mm:ss'
-                        }
-                    },
-                    ticks: {
-                        color: '#94a3b8',
-                        maxTicksLimit: 6
-                    },
-                    grid: {
-                        color: 'rgba(148, 163, 184, 0.1)'
-                    }
+                    ticks: { color: '#94a3b8', maxTicksLimit: 6 },
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' }
                 },
                 y: {
-                    ticks: {
-                        color: '#94a3b8'
-                    },
-                    grid: {
-                        color: 'rgba(148, 163, 184, 0.1)'
-                    }
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' }
                 }
             }
         }
-    };
-    
-    // Temperature Chart
-    liveState.charts.temperature = new Chart(document.getElementById('tempChart'), {
-        ...chartConfig,
-        data: {
-            datasets: [
-                {
-                    label: 'Temperature',
-                    data: [],
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Threshold',
-                    data: [],
-                    borderColor: '#ef4444',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0
-                }
-            ]
-        }
     });
-    
-    // Vibration Chart
-    liveState.charts.vibration = new Chart(document.getElementById('vibrationChart'), {
-        ...chartConfig,
-        data: {
-            datasets: [
-                {
-                    label: 'Vibration RMS',
-                    data: [],
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Threshold',
-                    data: [],
-                    borderColor: '#ef4444',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0
-                }
-            ]
-        }
-    });
-    
-    // Current Chart
-    liveState.charts.current = new Chart(document.getElementById('currentChart'), {
-        ...chartConfig,
-        data: {
-            datasets: [
-                {
-                    label: 'Current',
-                    data: [],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Threshold',
-                    data: [],
-                    borderColor: '#ef4444',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0
-                }
-            ]
-        }
-    });
-    
+}
+
+function initializeCharts() {
+    liveState.charts.temperature = makeChart('tempChart', 'Temperature (°C)', '#f59e0b');
+    liveState.charts.vibration = makeChart('vibrationChart', 'Vibration RMS (g)', '#3b82f6');
+    liveState.charts.current = makeChart('currentChart', 'Current (A)', '#10b981');
+    liveState.charts.busVoltage = makeChart('busVoltageChart', 'Bus voltage (V)', '#a855f7');
     console.log('✅ Charts initialized');
 }
 
@@ -798,8 +704,7 @@ function initializeCharts() {
 // ============================================================================
 
 function setupEventListeners() {
-    const controlButton = document.getElementById('controlButton');
-    controlButton.addEventListener('click', toggleMonitoring);
+    document.getElementById('controlButton').addEventListener('click', toggleMonitoring);
 }
 
 function toggleMonitoring() {
@@ -816,68 +721,57 @@ function toggleMonitoring() {
 
 function startMonitoring() {
     console.log('▶️  Starting live monitoring...');
-    
     liveState.isMonitoring = true;
+    updateControlButton();
     
-    // Update UI
-    updateLiveStatus(true);
-    
-    // Start polling
-    fetchSensorReading();  // Immediate first fetch
+    fetchSensorReading();
     liveState.sensorPollInterval = setInterval(fetchSensorReading, liveState.sensorRefreshRate);
     
-    fetchPrediction();  // Immediate first fetch
-    liveState.predictionPollInterval = setInterval(fetchPrediction, liveState.predictionRefreshRate);
-    
-    fetchSensorHistory();  // Immediate first fetch
+    fetchSensorHistory();
     liveState.historyPollInterval = setInterval(fetchSensorHistory, liveState.historyRefreshRate);
-    
-    console.log('✅ Monitoring started');
 }
 
 function stopMonitoring() {
     console.log('⏸  Stopping live monitoring...');
-    
     liveState.isMonitoring = false;
+    updateControlButton();
+    setStreamStatus('stopped');
     
-    // Update UI
-    updateLiveStatus(false);
-    
-    // Stop polling
     clearInterval(liveState.sensorPollInterval);
-    clearInterval(liveState.predictionPollInterval);
     clearInterval(liveState.historyPollInterval);
-    
-    console.log('✅ Monitoring stopped');
 }
 
-function updateLiveStatus(isLive) {
-    const indicator = document.getElementById('liveStatusIndicator');
-    const dot = document.getElementById('liveDot');
-    const text = document.getElementById('liveStatusText');
+function updateControlButton() {
     const button = document.getElementById('controlButton');
     const icon = document.getElementById('controlIcon');
-    const buttonText = document.getElementById('controlText');
+    const text = document.getElementById('controlText');
     
-    if (isLive) {
-        indicator.classList.remove('stopped');
-        dot.classList.remove('stopped');
-        text.classList.remove('stopped');
-        text.textContent = 'LIVE DATA STREAMING';
+    if (liveState.isMonitoring) {
         button.classList.remove('start');
         button.classList.add('stop');
         icon.textContent = '⏸';
-        buttonText.textContent = 'STOP';
+        text.textContent = 'STOP';
     } else {
-        indicator.classList.add('stopped');
-        dot.classList.add('stopped');
-        text.classList.add('stopped');
-        text.textContent = 'MONITORING STOPPED';
         button.classList.remove('stop');
         button.classList.add('start');
         icon.textContent = '▶️';
-        buttonText.textContent = 'START';
+        text.textContent = 'START';
     }
+}
+
+// state: 'ok' | 'no_data' | 'stopped'
+function setStreamStatus(state) {
+    const indicator = document.getElementById('liveStatusIndicator');
+    const dot = document.getElementById('liveDot');
+    const text = document.getElementById('liveStatusText');
+    const healthy = state === 'ok';
+    
+    [indicator, dot, text].forEach(el => el.classList.toggle('stopped', !healthy));
+    text.textContent = {
+        ok: 'RECEIVING DATA',
+        no_data: 'NO DATA RECEIVED',
+        stopped: 'MONITORING STOPPED',
+    }[state];
 }
 
 // ============================================================================
@@ -888,30 +782,22 @@ async function fetchSensorReading() {
     try {
         const response = await fetch(`/api/live/reading/?equipment_id=${liveState.equipmentId}`);
         const data = await response.json();
-        
-        if (data.success) {
-            liveState.currentReading = data;
-            updateSensorDisplays(data);
-            updateAlerts(data.alerts);
-        }
+        updateSensorDisplays(data);
     } catch (error) {
         console.error('❌ Error fetching sensor reading:', error);
+        updateSensorDisplays({ status: 'no_data', last_timestamp: null });
     }
 }
 
-async function fetchPrediction() {
+async function fetchPredictionStatus() {
     try {
-        const response = await fetch(
-            `/api/live/prediction/?equipment_id=${liveState.equipmentId}&equipment_type=${liveState.equipmentType}`
-        );
+        const response = await fetch(`/api/live/prediction/?equipment_id=${liveState.equipmentId}`);
         const data = await response.json();
-        
-        if (data.success) {
-            liveState.currentPrediction = data;
-            updatePredictionDisplays(data);
+        if (data.status === 'model_not_available') {
+            document.getElementById('modelPlaceholder').textContent = 'Anomaly model not trained yet';
         }
     } catch (error) {
-        console.error('❌ Error fetching prediction:', error);
+        console.error('❌ Error fetching prediction status:', error);
     }
 }
 
@@ -919,8 +805,7 @@ async function fetchSensorHistory() {
     try {
         const response = await fetch(`/api/live/history/?equipment_id=${liveState.equipmentId}&seconds=60`);
         const data = await response.json();
-        
-        if (data.success) {
+        if (data.data) {
             updateCharts(data.data);
         }
     } catch (error) {
@@ -933,197 +818,53 @@ async function fetchSensorHistory() {
 // ============================================================================
 
 function updateSensorDisplays(data) {
-    const sensors = data.sensors;
-    const thresholds = data.thresholds;
-    
-    // Temperature
-    const temp = sensors.temperature;
-    document.getElementById('tempValue').innerHTML = `${temp.toFixed(1)}<span class="sensor-unit">°C</span>`;
-    
-    const tempCard = document.getElementById('tempCard');
-    const tempDot = document.getElementById('tempStatusDot');
-    const tempStatus = document.getElementById('tempStatus');
-    
-    if (temp > thresholds.temperature_max) {
-        tempCard.classList.add('alert');
-        tempDot.className = 'sensor-status-dot critical';
-        tempStatus.textContent = `CRITICAL (>${thresholds.temperature_max}°C)`;
-    } else if (temp > thresholds.temperature_max * 0.9) {
-        tempCard.classList.remove('alert');
-        tempDot.className = 'sensor-status-dot warning';
-        tempStatus.textContent = 'Warning';
-    } else {
-        tempCard.classList.remove('alert');
-        tempDot.className = 'sensor-status-dot';
-        tempStatus.textContent = 'Normal';
-    }
-    
-    // Vibration
-    const vib = sensors.vibration_rms || 0;
-    document.getElementById('vibrationValue').innerHTML = `${vib.toFixed(3)}<span class="sensor-unit">g</span>`;
-    
-    const vibCard = document.getElementById('vibrationCard');
-    const vibDot = document.getElementById('vibrationStatusDot');
-    const vibStatus = document.getElementById('vibrationStatus');
-    
-    if (vib > thresholds.vibration_max) {
-        vibCard.classList.add('alert');
-        vibDot.className = 'sensor-status-dot critical';
-        vibStatus.textContent = `CRITICAL (>${thresholds.vibration_max}g)`;
-    } else if (vib > thresholds.vibration_max * 0.8) {
-        vibCard.classList.remove('alert');
-        vibDot.className = 'sensor-status-dot warning';
-        vibStatus.textContent = 'Warning';
-    } else {
-        vibCard.classList.remove('alert');
-        vibDot.className = 'sensor-status-dot';
-        vibStatus.textContent = 'Normal';
-    }
-    
-    // Current
-    const current = sensors.current;
-    document.getElementById('currentValue').innerHTML = `${current.toFixed(2)}<span class="sensor-unit">A</span>`;
-    
-    const currentCard = document.getElementById('currentCard');
-    const currentDot = document.getElementById('currentStatusDot');
-    const currentStatus = document.getElementById('currentStatus');
-    
-    if (current > thresholds.current_max) {
-        currentCard.classList.add('alert');
-        currentDot.className = 'sensor-status-dot critical';
-        currentStatus.textContent = `CRITICAL (>${thresholds.current_max}A)`;
-    } else if (current > thresholds.current_max * 0.8) {
-        currentCard.classList.remove('alert');
-        currentDot.className = 'sensor-status-dot warning';
-        currentStatus.textContent = 'Warning';
-    } else {
-        currentCard.classList.remove('alert');
-        currentDot.className = 'sensor-status-dot';
-        currentStatus.textContent = 'Normal';
-    }
-}
+    if (!liveState.isMonitoring) return;
 
-function updatePredictionDisplays(data) {
-    const prediction = data.prediction;
+    const banner = document.getElementById('noDataBanner');
     
-    // RUL
-    document.getElementById('rulValue').textContent = prediction.rul.toFixed(1);
-    
-    // Update time
-    const now = new Date();
-    document.getElementById('rulUpdateTime').textContent = 
-        `Last updated: ${now.toLocaleTimeString()}`;
-    
-    // Confidence
-    document.getElementById('confidenceValue').textContent = `${prediction.confidence.toFixed(1)}%`;
-    
-    const confidenceLevel = document.getElementById('confidenceLevel');
-    if (prediction.confidence >= 80) {
-        confidenceLevel.textContent = 'High confidence';
-    } else if (prediction.confidence >= 60) {
-        confidenceLevel.textContent = 'Moderate confidence';
-    } else {
-        confidenceLevel.textContent = 'Low confidence';
-    }
-    
-    // Status
-    const statusEmojis = {
-        'healthy': '✅ HEALTHY',
-        'caution': '⚠️ CAUTION',
-        'critical': '🚨 CRITICAL'
-    };
-    document.getElementById('statusValue').textContent = statusEmojis[prediction.status] || '-- --';
-    
-    // Data source
-    const source = prediction.data_source || 'live';
-    const sourceEmoji = source === 'live' ? '🔴' : '📊';
-    document.getElementById('dataSourceValue').textContent = `${sourceEmoji} ${source.toUpperCase()}`;
-    document.getElementById('readingCount').textContent = `${data.reading_count || 0} readings`;
-}
-
-function updateCharts(historyData) {
-    const timestamps = historyData.timestamps.map(t => new Date(t));
-    
-    // Temperature Chart
-    const tempChart = liveState.charts.temperature;
-    tempChart.data.datasets[0].data = timestamps.map((t, i) => ({
-        x: t,
-        y: historyData.temperature[i]
-    }));
-    tempChart.data.datasets[1].data = timestamps.map(t => ({
-        x: t,
-        y: 85.0  // Threshold
-    }));
-    tempChart.update('none');
-    
-    // Vibration Chart
-    const vibChart = liveState.charts.vibration;
-    vibChart.data.datasets[0].data = timestamps.map((t, i) => ({
-        x: t,
-        y: historyData.vibration_rms[i]
-    }));
-    vibChart.data.datasets[1].data = timestamps.map(t => ({
-        x: t,
-        y: 2.5  // Threshold
-    }));
-    vibChart.update('none');
-    
-    // Current Chart
-    const currentChart = liveState.charts.current;
-    currentChart.data.datasets[0].data = timestamps.map((t, i) => ({
-        x: t,
-        y: historyData.current[i]
-    }));
-    currentChart.data.datasets[1].data = timestamps.map(t => ({
-        x: t,
-        y: 10.0  // Threshold
-    }));
-    currentChart.update('none');
-}
-
-function updateAlerts(alerts) {
-    const container = document.getElementById('alertsContainer');
-    
-    if (!alerts || alerts.length === 0) {
-        container.innerHTML = `
-            <div class="no-alerts">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                <div>No active alerts. All systems normal.</div>
-            </div>
-        `;
+    if (data.status !== 'ok') {
+        setStreamStatus('no_data');
+        banner.classList.remove('hidden');
+        document.getElementById('lastReadingText').textContent = data.last_timestamp
+            ? `Last reading: ${new Date(data.last_timestamp).toLocaleString()}`
+            : 'No reading has been stored yet.';
+        
+        SENSOR_FIELDS.forEach(f => {
+            const value = document.getElementById(f.valueId);
+            value.textContent = '--';
+            value.parentElement.classList.add('no-data');
+            document.getElementById(f.statusId).textContent = 'No data received';
+        });
         return;
     }
     
-    let html = '';
+    setStreamStatus('ok');
+    banner.classList.add('hidden');
+    const measuredAt = new Date(data.timestamp).toLocaleTimeString();
     
-    alerts.forEach(alert => {
-        const severityIcons = {
-            'critical': '🚨',
-            'warning': '⚠️',
-            'info': 'ℹ️'
-        };
-        
-        html += `
-            <div class="alert-item ${alert.severity}">
-                <div class="alert-icon">${severityIcons[alert.severity]}</div>
-                <div class="alert-content">
-                    <div class="alert-message">${alert.message}</div>
-                    <div class="alert-timestamp">${new Date(alert.timestamp).toLocaleString()}</div>
-                </div>
-            </div>
-        `;
+    SENSOR_FIELDS.forEach(f => {
+        const raw = data.reading[f.key];
+        const value = document.getElementById(f.valueId);
+        value.textContent = (raw === null || raw === undefined) ? '--' : raw.toFixed(f.digits);
+        value.parentElement.classList.remove('no-data');
+        document.getElementById(f.statusId).textContent = `Measured ${measuredAt} (${data.age_seconds}s ago)`;
     });
     
-    container.innerHTML = html;
+    if (data.reading.run_label) {
+        document.getElementById('equipmentSubtitle').textContent =
+            `Live sensors (Raspberry Pi) • run "${data.reading.run_label}"`;
+    }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-function getCSRFToken() {
-    const token = document.querySelector('[name=csrfmiddlewaretoken]');
-    return token ? token.value : '';
+function updateCharts(historyData) {
+    const labels = historyData.timestamps.map(t => new Date(t).toLocaleTimeString());
+    
+    SENSOR_FIELDS.forEach(f => {
+        const chart = liveState.charts[f.chart];
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = historyData[f.key] || [];
+        chart.update('none');
+    });
 }
 
 console.log('✅ Live Dashboard JavaScript loaded');

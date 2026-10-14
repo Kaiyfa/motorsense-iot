@@ -19,4 +19,7 @@ urlpatterns = [
     path('api/live/reading/', views.live_reading, name='live_reading'),
     path('api/live/prediction/', views.live_prediction, name='live_prediction'),
     path('api/live/history/', views.live_sensor_history, name='live_sensor_history'),
+
+    # Sensor ingest (Raspberry Pi, token auth)
+    path('api/ingest/', views.ingest, name='ingest'),
 ]

@@ -52,20 +52,32 @@ class SensorData(models.Model):
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='sensor_data')
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     
-    # Vibration data
-    vibration_x = models.FloatField(help_text="Vibration X-axis (g)")
-    vibration_y = models.FloatField(help_text="Vibration Y-axis (g)")
-    vibration_z = models.FloatField(help_text="Vibration Z-axis (g)")
+    SOURCE_CHOICES = [
+        ('pi', 'Raspberry Pi'),
+        ('sample', 'Sample (synthetic)'),
+    ]
+
+    # Vibration data (per-axis values are not sent by the Pi, so they may be empty)
+    vibration_x = models.FloatField(null=True, blank=True, help_text="Vibration X-axis (g)")
+    vibration_y = models.FloatField(null=True, blank=True, help_text="Vibration Y-axis (g)")
+    vibration_z = models.FloatField(null=True, blank=True, help_text="Vibration Z-axis (g)")
     
     # Temperature data
     temperature = models.FloatField(help_text="Temperature (°C)")
     
     # Current data
-    current = models.FloatField(help_text="Current (A)")
+    current = models.FloatField(help_text="Motor current in amperes (A), not milliamperes")
+    
+    # Supply voltage
+    bus_voltage = models.FloatField(null=True, blank=True, help_text="Bus voltage (V)")
     
     # Calculated features
     vibration_rms = models.FloatField(null=True, blank=True, help_text="Root Mean Square of vibration")
     vibration_peak = models.FloatField(null=True, blank=True, help_text="Peak vibration value")
+    
+    # Provenance
+    run_label = models.CharField(max_length=64, blank=True, help_text="Name of the recording session")
+    source = models.CharField(max_length=16, choices=SOURCE_CHOICES, default='pi')
     
     class Meta:
         db_table = 'sensor_data'

@@ -2,15 +2,18 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.utils.dateparse import parse_datetime
 from .models import Equipment, SensorData
 from dashboard.ml.ml_service import prediction_service
-from django.db.models import Avg, Max, Min
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
+import hmac
 import logging
-import time
 import json
-import numpy as np
+import math
 from django.utils import timezone 
 
 logger = logging.getLogger(__name__)
@@ -96,8 +99,8 @@ def get_prediction(request):
     try:
         # Extract request parameters
         equipment_type = request.POST.get('equipment_type', 'Pump')
-        equipment_id = request.POST.get('equipment_id', 'EQ-006')
-        location = request.POST.get('location', 'Ghawar Field')
+        equipment_id = request.POST.get('equipment_id', 'EQ-001')
+        location = request.POST.get('location', '')
         
         logger.info(f"🔄 Prediction request: {equipment_type} {equipment_id} @ {location}")
         
@@ -396,213 +399,192 @@ def calculate_trend_metrics(prediction: dict) -> dict:
     }
 
 
+# SENSOR INGEST (Raspberry Pi)
+
+INGEST_MAX_BODY_BYTES = 4 * 1024
+LIVE_EQUIPMENT_ID = 'EQ-001'
+LIVE_EQUIPMENT_NAME = 'Motor testbed'
+
+# JSON field -> (min, max) accepted range
+INGEST_RANGES = {
+    'temp_c': (-20.0, 150.0),
+    'vib_rms_g': (0.0, 20.0),
+    'vib_peak_g': (0.0, 20.0),
+    'current_ma': (0.0, 5000.0),
+    'bus_v': (0.0, 30.0),
+}
+
+
+def _ingest_error(message, status=400):
+    return JsonResponse({'status': 'error', 'error': message}, status=status)
+
+
+def _has_valid_ingest_token(request):
+    header = request.META.get('HTTP_AUTHORIZATION', '')
+    scheme, _, token = header.partition(' ')
+    if scheme != 'Bearer' or not token:
+        return False
+    return hmac.compare_digest(token.strip().encode(), settings.INGEST_TOKEN.encode())
+
+
+@csrf_exempt
+@require_POST
+def ingest(request):
+    """
+    Store one sensor reading sent by the Raspberry Pi.
+
+    Auth: 'Authorization: Bearer <INGEST_TOKEN>'.
+    Body: {"equipment_id", "timestamp", "temp_c", "vib_rms_g", "vib_peak_g",
+           "current_ma", "bus_v", "label"}
+    """
+    if not _has_valid_ingest_token(request):
+        return _ingest_error('Missing or invalid token', status=401)
+
+    try:
+        content_length = int(request.META.get('CONTENT_LENGTH') or 0)
+    except ValueError:
+        content_length = 0
+    if content_length > INGEST_MAX_BODY_BYTES or len(request.body) > INGEST_MAX_BODY_BYTES:
+        return _ingest_error(f'Request body larger than {INGEST_MAX_BODY_BYTES} bytes', status=413)
+
+    try:
+        payload = json.loads(request.body)
+    except (ValueError, UnicodeDecodeError):
+        return _ingest_error('Body is not valid JSON')
+    if not isinstance(payload, dict):
+        return _ingest_error('Body must be a JSON object')
+
+    # Equipment
+    equipment_id = payload.get('equipment_id', LIVE_EQUIPMENT_ID)
+    if not isinstance(equipment_id, str) or not equipment_id or len(equipment_id) > 50:
+        return _ingest_error('equipment_id must be a non-empty string of at most 50 characters')
+
+    # Timestamp (ISO 8601, UTC assumed when no offset is given)
+    raw_timestamp = payload.get('timestamp')
+    if raw_timestamp is None:
+        timestamp = timezone.now()
+    else:
+        timestamp = parse_datetime(raw_timestamp) if isinstance(raw_timestamp, str) else None
+        if timestamp is None:
+            return _ingest_error('timestamp must be an ISO 8601 datetime, e.g. 2026-10-14T12:00:00Z')
+        if timezone.is_naive(timestamp):
+            timestamp = timezone.make_aware(timestamp, dt_timezone.utc)
+
+    # Numeric readings
+    values = {}
+    for field, (low, high) in INGEST_RANGES.items():
+        value = payload.get(field)
+        if value is None:
+            return _ingest_error(f'{field} is required')
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return _ingest_error(f'{field} must be a number')
+        if not math.isfinite(value):
+            return _ingest_error(f'{field} must be a finite number')
+        if not low <= value <= high:
+            return _ingest_error(f'{field}={value} is outside the allowed range {low}..{high}')
+        values[field] = float(value)
+
+    label = payload.get('label', '')
+    if label is None:
+        label = ''
+    if not isinstance(label, str) or len(label) > 64:
+        return _ingest_error('label must be a string of at most 64 characters')
+
+    if equipment_id == LIVE_EQUIPMENT_ID:
+        equipment, _ = Equipment.objects.get_or_create(
+            equipment_id=LIVE_EQUIPMENT_ID,
+            defaults={
+                'name': LIVE_EQUIPMENT_NAME,
+                'equipment_type': 'MOTOR',
+                'location': 'Test bench',
+                'installation_date': timezone.now().date(),
+            },
+        )
+    else:
+        equipment = Equipment.objects.filter(equipment_id=equipment_id).first()
+        if equipment is None:
+            return _ingest_error(f'Unknown equipment_id {equipment_id!r}')
+
+    if SensorData.objects.filter(equipment=equipment, timestamp=timestamp, source='pi').exists():
+        return JsonResponse({'status': 'duplicate'}, status=200)
+
+    reading = SensorData.objects.create(
+        equipment=equipment,
+        timestamp=timestamp,
+        temperature=values['temp_c'],
+        vibration_rms=values['vib_rms_g'],
+        vibration_peak=values['vib_peak_g'],
+        current=values['current_ma'] / 1000.0,  # mA -> A
+        bus_voltage=values['bus_v'],
+        run_label=label,
+        source='pi',
+    )
+    return JsonResponse({'status': 'created', 'id': reading.id}, status=201)
+
+
 # LIVE SENSOR API ENDPOINTS
+# These only ever return readings stored by /api/ingest/ (source="pi").
+# There is no simulated fallback: no data means "no_data".
+
+LIVE_MAX_AGE_SECONDS = 15
+
+
+def _serialize_reading(reading):
+    return {
+        'temperature': reading.temperature,
+        'vibration_rms': reading.vibration_rms,
+        'vibration_peak': reading.vibration_peak,
+        'current': reading.current,
+        'bus_voltage': reading.bus_voltage,
+        'run_label': reading.run_label,
+    }
+
 
 @login_required(login_url='login')
 def live_reading(request):
     """
-    Fetch the absolute latest sensor reading from TimescaleDB
-    
-    Returns:
-        JSON with current sensor values and timestamp
+    Latest stored Pi reading for the equipment.
+
+    status "ok"      -> reading is at most 15 s old
+    status "no_data" -> no reading at all, or the latest one is older than 15 s
     """
-    try:
-        equipment_id = request.GET.get('equipment_id', 'EQ-006')
-        
-        # Fetch most recent sensor reading
-        latest_reading = SensorData.objects.filter(
-            equipment_id=equipment_id
-        ).order_by('-timestamp').first()
-        
-        if not latest_reading:
-            # No real data - return simulated live reading
-            return JsonResponse({
-                'success': True,
-                'source': 'simulated',
-                'timestamp': timezone.now().isoformat(),
-                'equipment_id': equipment_id,
-                'sensors': {
-                    'vibration_x': round(np.random.normal(0.5, 0.1), 3),
-                    'vibration_y': round(np.random.normal(0.6, 0.1), 3),
-                    'vibration_z': round(np.random.normal(0.4, 0.1), 3),
-                    'vibration_rms': round(np.random.normal(0.5, 0.08), 3),
-                    'vibration_peak': round(np.random.normal(0.8, 0.15), 3),
-                    'temperature': round(np.random.normal(45.0, 5.0), 1),
-                    'current': round(np.random.normal(5.2, 0.5), 2),
-                },
-                'thresholds': {
-                    'temperature_max': 85.0,
-                    'vibration_max': 2.5,
-                    'current_max': 10.0,
-                },
-                'alerts': []
-            })
-        
-        # Real data from TimescaleDB
-        sensors = {
-            'vibration_x': latest_reading.vibration_x,
-            'vibration_y': latest_reading.vibration_y,
-            'vibration_z': latest_reading.vibration_z,
-            'vibration_rms': latest_reading.vibration_rms,
-            'vibration_peak': latest_reading.vibration_peak,
-            'temperature': latest_reading.temperature,
-            'current': latest_reading.current,
-        }
-        
-        # Check threshold violations
-        thresholds = {
-            'temperature_max': 85.0,
-            'vibration_max': 2.5,
-            'current_max': 10.0,
-        }
-        
-        alerts = []
-        
-        if sensors['temperature'] > thresholds['temperature_max']:
-            alerts.append({
-                'severity': 'critical',
-                'sensor': 'temperature',
-                'message': f"HIGH TEMP: {sensors['temperature']:.1f}°C > {thresholds['temperature_max']}°C threshold",
-                'timestamp': latest_reading.timestamp.isoformat()
-            })
-        
-        if sensors['vibration_rms'] and sensors['vibration_rms'] > thresholds['vibration_max']:
-            alerts.append({
-                'severity': 'warning',
-                'sensor': 'vibration',
-                'message': f"HIGH VIBRATION: {sensors['vibration_rms']:.2f}g > {thresholds['vibration_max']}g threshold",
-                'timestamp': latest_reading.timestamp.isoformat()
-            })
-        
-        if sensors['current'] > thresholds['current_max']:
-            alerts.append({
-                'severity': 'warning',
-                'sensor': 'current',
-                'message': f"HIGH CURRENT: {sensors['current']:.1f}A > {thresholds['current_max']}A threshold",
-                'timestamp': latest_reading.timestamp.isoformat()
-            })
-        
+    equipment_id = request.GET.get('equipment_id', LIVE_EQUIPMENT_ID)
+
+    latest = SensorData.objects.filter(
+        equipment_id=equipment_id, source='pi'
+    ).order_by('-timestamp').first()
+
+    if latest is None:
         return JsonResponse({
-            'success': True,
-            'source': 'live',
-            'timestamp': latest_reading.timestamp.isoformat(),
+            'status': 'no_data',
             'equipment_id': equipment_id,
-            'sensors': sensors,
-            'thresholds': thresholds,
-            'alerts': alerts
+            'last_timestamp': None,
+            'age_seconds': None,
         })
-        
-    except Exception as e:
-        logger.error(f"❌ Error fetching live reading: {e}")
+
+    age_seconds = round((timezone.now() - latest.timestamp).total_seconds(), 1)
+
+    if age_seconds > LIVE_MAX_AGE_SECONDS:
         return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+            'status': 'no_data',
+            'equipment_id': equipment_id,
+            'last_timestamp': latest.timestamp.isoformat(),
+            'age_seconds': age_seconds,
+        })
+
+    return JsonResponse({
+        'status': 'ok',
+        'equipment_id': equipment_id,
+        'timestamp': latest.timestamp.isoformat(),
+        'age_seconds': age_seconds,
+        'reading': _serialize_reading(latest),
+    })
 
 
 @login_required(login_url='login')
 def live_prediction(request):
-    """
-    Generate ML prediction using last 30 live sensor readings
-    
-    This endpoint is called periodically (e.g., every 5 minutes) by the Live Dashboard
-    to update the RUL prediction based on accumulated real-time data.
-    
-    Returns:
-        JSON with RUL prediction and health metrics
-    """
-    try:
-        equipment_id = request.GET.get('equipment_id', 'EQ-006')
-        equipment_type = request.GET.get('equipment_type', 'Pump')
-        
-        logger.info(f"🔴 LIVE PREDICTION: Using real sensor data for {equipment_id}")
-        
-        # Load model if not already loaded
-        if not prediction_service.model_loaded:
-            logger.info("📦 Loading LSTM model...")
-            if not prediction_service.load_model():
-                raise Exception("Failed to load LSTM model")
-        
-        # Check if we have enough real sensor data
-        reading_count = SensorData.objects.filter(equipment_id=equipment_id).count()
-        
-        if reading_count < 30:
-            logger.warning(f"Only {reading_count} readings available. Using simulated data.")
-            # Fall back to simulated prediction
-            prediction_result = prediction_service.predict_from_equipment(
-                equipment_id=equipment_id,
-                equipment_type=equipment_type
-            )
-            prediction_result['data_source'] = 'simulated'
-        else:
-            # Use real live sensor data
-            prediction_result = prediction_service.predict_from_live_sensors(
-                equipment_id=equipment_id,
-                equipment_type=equipment_type
-            )
-        
-        # Get recent sensor statistics for context
-        recent_readings = SensorData.objects.filter(
-            equipment_id=equipment_id
-        ).order_by('-timestamp')[:100]
-        
-        if recent_readings.exists():
-            stats = recent_readings.aggregate(
-                avg_temp=Avg('temperature'),
-                max_temp=Max('temperature'),
-                avg_vibration_rms=Avg('vibration_rms'),
-                max_vibration_rms=Max('vibration_rms'),
-                avg_current=Avg('current'),
-                max_current=Max('current'),
-            )
-            
-            prediction_result['sensor_statistics'] = {
-                'temperature': {
-                    'average': round(stats['avg_temp'] or 0, 1),
-                    'max': round(stats['max_temp'] or 0, 1),
-                },
-                'vibration_rms': {
-                    'average': round(stats['avg_vibration_rms'] or 0, 3),
-                    'max': round(stats['max_vibration_rms'] or 0, 3),
-                },
-                'current': {
-                    'average': round(stats['avg_current'] or 0, 2),
-                    'max': round(stats['max_current'] or 0, 2),
-                }
-            }
-        
-        # Save to prediction history
-        from dashboard.models import PredictionHistory
-        PredictionHistory.objects.create(
-            equipment_id=equipment_id,
-            equipment_type=equipment_type,
-            location=request.GET.get('location', 'Ghawar Field'),
-            rul=prediction_result['rul'],
-            confidence=prediction_result['confidence'],
-            status=prediction_result['status'],
-            speed_health=prediction_result['health_metrics']['speedHealth'],
-            temperature_health=prediction_result['health_metrics']['temperatureHealth'],
-            pressure_health=prediction_result['health_metrics']['pressureHealth'],
-            data_source=prediction_result.get('data_source', 'live'),
-            model_used='LSTM',
-        )
-        
-        logger.info(f"✅ Live prediction complete: RUL={prediction_result['rul']:.1f}")
-        
-        return JsonResponse({
-            'success': True,
-            'prediction': prediction_result,
-            'reading_count': reading_count,
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Error generating live prediction: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+    """No anomaly model has been trained on the testbed data yet."""
+    return JsonResponse({'status': 'model_not_available'})
 
 
 @login_required(login_url='login')
@@ -621,64 +603,41 @@ def live_dashboard(request):
 @login_required(login_url='login')
 def live_sensor_history(request):
     """
-    Fetch last N seconds of sensor readings for real-time charts
-    
-    Returns:
-        JSON with time-series sensor data for charting
+    Stored Pi readings from the last N seconds (default 60, max 3600) for charts.
+    Returns empty lists when nothing was received.
     """
+    equipment_id = request.GET.get('equipment_id', LIVE_EQUIPMENT_ID)
     try:
-        equipment_id = request.GET.get('equipment_id', 'EQ-006')
-        seconds = int(request.GET.get('seconds', 60))  # Default: last 60 seconds
-        
-        # Calculate time range
-        end_time = datetime.now()
-        start_time = end_time - timedelta(seconds=seconds)
-        
-        # Fetch readings in time range
-        readings = SensorData.objects.filter(
-            equipment_id=equipment_id,
-            timestamp__gte=start_time,
-            timestamp__lte=end_time
-        ).order_by('timestamp')
-        
-        # Format for charting
-        data = {
-            'timestamps': [],
-            'temperature': [],
-            'vibration_rms': [],
-            'current': [],
-        }
-        
-        for reading in readings:
-            data['timestamps'].append(reading.timestamp.isoformat())
-            data['temperature'].append(reading.temperature)
-            data['vibration_rms'].append(reading.vibration_rms or 0)
-            data['current'].append(reading.current)
-        
-        # If no real data, generate simulated historical data
-        if not readings.exists():
-            logger.warning("No real sensor history. Generating simulated data.")
-            num_points = 12  # 12 points for 60 seconds (5 sec intervals)
-            current_time = end_time
-            
-            for i in range(num_points):
-                timestamp = current_time - timedelta(seconds=(num_points - i - 1) * 5)
-                data['timestamps'].append(timestamp.isoformat())
-                data['temperature'].append(round(45.0 + np.random.normal(0, 2), 1))
-                data['vibration_rms'].append(round(0.5 + np.random.normal(0, 0.1), 3))
-                data['current'].append(round(5.2 + np.random.normal(0, 0.3), 2))
-        
-        return JsonResponse({
-            'success': True,
-            'equipment_id': equipment_id,
-            'time_range_seconds': seconds,
-            'data_points': len(data['timestamps']),
-            'data': data
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Error fetching sensor history: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        seconds = int(request.GET.get('seconds', 60))
+    except ValueError:
+        return JsonResponse({'status': 'error', 'error': 'seconds must be an integer'}, status=400)
+    seconds = max(1, min(seconds, 3600))
+
+    start_time = timezone.now() - timedelta(seconds=seconds)
+    readings = SensorData.objects.filter(
+        equipment_id=equipment_id,
+        source='pi',
+        timestamp__gte=start_time,
+    ).order_by('timestamp')
+
+    data = {
+        'timestamps': [],
+        'temperature': [],
+        'vibration_rms': [],
+        'current': [],
+        'bus_voltage': [],
+    }
+    for reading in readings:
+        data['timestamps'].append(reading.timestamp.isoformat())
+        data['temperature'].append(reading.temperature)
+        data['vibration_rms'].append(reading.vibration_rms)
+        data['current'].append(reading.current)
+        data['bus_voltage'].append(reading.bus_voltage)
+
+    return JsonResponse({
+        'status': 'ok' if data['timestamps'] else 'no_data',
+        'equipment_id': equipment_id,
+        'time_range_seconds': seconds,
+        'data_points': len(data['timestamps']),
+        'data': data,
+    })
