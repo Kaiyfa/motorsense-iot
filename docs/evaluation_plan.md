@@ -168,7 +168,7 @@ r3_normal_01), with no fault applied.
 
 | Fault | Effect | Normal variation without a fault |
 |---|---|---|
-| Imbalance | Vibration RMS 7.3 % to 15.7 % lower than both references, not higher | r4_band_normal_a against r4_test_drag: -2.0 % |
+| Imbalance | Vibration RMS 7.3 % to 15.7 % lower than both references, not higher | r4_band_normal_a against r3_normal_01: +21.7 %. The imbalance runs were recorded after r3_normal_01 and before the r4 references, so this shift is mixed into the comparison |
 | Imbalance, four bands | -7.1 % to +6.4 % per band, in both directions | |
 | Loosened mount | Vibration RMS +4.4 % | r3_normal_01 against r2_normal_01: +23.2 % |
 | Friction by hand | Current +0.7 % to +0.9 % against the reference from the same period (r4_band_normal_a); +1.7 % to +1.9 % against r3_normal_01 | r4_band_normal_a against r3_normal_01: +0.9 % |
