@@ -114,6 +114,12 @@ reported together with the underlying counts (true positives, false positives, f
 negatives, true negatives). All five detectors above are reported in one table, per window
 and per session.
 
+## Expected outcome
+
+Recorded before training. The fixed threshold on current is likely to separate the normal
+and fault test sessions perfectly. If it does, the autoencoder cannot be shown to beat it
+on this fault, and the README will say so.
+
 ## Negative findings
 
 All numbers in this section are printed by `analysis/negative_findings.py`, run on the raw
