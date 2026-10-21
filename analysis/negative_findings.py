@@ -167,6 +167,14 @@ def run_comparison(title, references, tests, min_current, sessions):
                     parts += [f"{b} {pct(t[b]['mean'], r[b]['mean'])}" for b in BANDS]
                 print(f"    {test} vs {ref}: " + ', '.join(parts))
 
+    if len(ref_labels) > 1:
+        print('\n  Change between the references (no fault applied):')
+        for i, first in enumerate(ref_labels):
+            for second in ref_labels[i + 1:]:
+                a, b = summaries[first][0], summaries[second][0]
+                parts = [f"{name} {pct(b[name]['mean'], a[name]['mean'])}" for name in SIGNALS]
+                print(f"    {second} vs {first}: " + ', '.join(parts))
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

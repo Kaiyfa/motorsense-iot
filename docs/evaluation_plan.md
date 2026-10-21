@@ -161,15 +161,20 @@ Only seconds with current above 500 mA.
 
 Current was 0.7 % to 1.9 % higher than in the references (r4_tune +1.9 % and +0.9 %,
 r4_tune2 +1.7 % and +0.7 % against r3_normal_01 and r4_band_normal_a). The two normal
-references alone differ by 7.8 mA (815.5 against 823.3 mA).
+references differ from each other by 0.9 % in current (r4_band_normal_a against
+r3_normal_01), with no fault applied.
 
 ### Conclusion
 
-Imbalance, a loosened mount and friction by hand each changed vibration RMS or current by
-less than the shift between normal sessions without any fault (23.2 % in vibration RMS
-between r2_normal_01 and r3_normal_01; 7.8 mA in current between r3_normal_01 and
-r4_band_normal_a), and the four frequency bands did not separate the imbalance either. These
-faults are therefore not detectable in this rig and are not part of the evaluation.
+| Fault | Effect | Normal variation without a fault |
+|---|---|---|
+| Imbalance | Vibration RMS 7.3 % to 15.7 % lower than both references, not higher | r4_band_normal_a against r4_test_drag: -2.0 % |
+| Imbalance, four bands | -7.1 % to +6.4 % per band, in both directions | |
+| Loosened mount | Vibration RMS +4.4 % | r3_normal_01 against r2_normal_01: +23.2 % |
+| Friction by hand | Current +0.7 % to +0.9 % against the reference from the same period (r4_band_normal_a); +1.7 % to +1.9 % against r3_normal_01 | r4_band_normal_a against r3_normal_01: +0.9 % |
+
+None of these faults produces a change that is clearly larger than the variation between
+normal sessions, so they are not detectable in this rig and are not part of the evaluation.
 
 ### For comparison: open motor lead
 
