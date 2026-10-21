@@ -34,11 +34,27 @@ The fault in the test fault sessions is one motor lead disconnected (open circui
 | Excluded | Reason |
 |---|---|
 | Every label ending in `_warmup` | The first 180 s of each session; vibration is still warming up |
-| r5_check | Excluded (no reason given) |
-| r5_normal_04 | Invalid session: current 950 to 995 mA, vibration RMS 0.18 to 0.27 g, 923 I2C errors, cause unknown |
+| r5_check | Recorded with `--no-post`: it exists only in the raw CSV files, not in the database |
+| r5_normal_04 | Invalid session, cause unknown (details below) |
 | The extra 30 rows in r5_normal_03_warmup | An aborted start |
-| Every row with source other than live | Excluded by rule |
+| Every row with source other than `pi` | `pi` is the value the ingest endpoint stores for testbed rows |
 | Any label not listed in this plan | Never assigned to a role by guessing |
+
+#### r5_normal_04
+
+| View | Vibration RMS | Current | Rows |
+|---|---|---|---|
+| Session log, per-minute means | 0.175 to 0.270 g | 953 to 995 mA | 480 recorded |
+| Database, per 1 s window | 0.163 to 0.295 g, mean 0.247 g | | 322 reached the database |
+
+The raw CSV file of this recording contains 923 I2C errors in total (230 in
+r5_normal_04_warmup and 693 in r5_normal_04). The I2C error count is not stored in the
+database.
+
+#### Rows missing from the database
+
+r5_fault_open_01_warmup has 153 rows in the database because some early seconds were not
+posted; the raw CSV has all 180. This session is excluded in any case (warm-up).
 
 ## Model inputs
 
