@@ -88,11 +88,31 @@ session, the same 99.5th percentile and the same 10-second rule.
 | Fixed threshold on current | `current` |
 | Fixed threshold on vibration | `vib_rms_g` |
 
+## Ablation
+
+Besides the three-feature model, the same autoencoder architecture is trained on two
+reduced feature sets. All variants use exactly the same sessions, the same threshold rule
+(99.5th percentile on the validation session) and the same alert rule (10 consecutive
+seconds).
+
+| Detector | Inputs |
+|---|---|
+| Autoencoder, all features | vib_rms_g, vib_peak_g, current |
+| Autoencoder, vibration only | vib_rms_g, vib_peak_g |
+| Autoencoder, current only | current |
+| Fixed threshold on current | current |
+| Fixed threshold on vibration | vib_rms_g |
+
+The fault (one motor lead open) drops the current by about 0.115 A, so it is expected to be
+detected by any method that sees the current. The ablation is there to show what the
+vibration channels alone can and cannot detect.
+
 ## Metrics
 
 Precision and recall on the test sessions, computed both per window and per session,
 reported together with the underlying counts (true positives, false positives, false
-negatives, true negatives).
+negatives, true negatives). All five detectors above are reported in one table, per window
+and per session.
 
 ## Negative findings
 
