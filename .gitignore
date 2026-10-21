@@ -38,3 +38,5 @@ Thumbs.db
 data/*
 ml_models/*
 !data/.gitkeep
+# Exported evaluation dataset (python manage.py export_dataset)
+data/dataset/
