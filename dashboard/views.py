@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
-from .models import Equipment, SensorData
+from .models import AlertEpisode, AnomalyScore, Equipment, ScorerHeartbeat, SensorData
 from dashboard.ml.ml_service import prediction_service
 from datetime import datetime, timedelta, timezone as dt_timezone
 import hmac
@@ -640,4 +640,126 @@ def live_sensor_history(request):
         'time_range_seconds': seconds,
         'data_points': len(data['timestamps']),
         'data': data,
+    })
+
+
+
+# ANOMALY SCORES AND ALERTS (written by the score_live / replay_session commands)
+# These views only read the database; TensorFlow runs in the scorer process.
+# Live endpoints return mode "live" rows only, so a replay is never shown as live.
+
+SCORER_ALIVE_SECONDS = 10
+LIVE_SCORES_MAX_MINUTES = 24 * 60
+
+
+def _iso(value):
+    return value.isoformat() if value else None
+
+
+def _score_json(row):
+    return {
+        'timestamp': _iso(row.timestamp),
+        'run_label': row.run_label,
+        'machine_state': row.machine_state,
+        'score': row.score,
+        'threshold': row.threshold,
+        'above_threshold': row.above_threshold,
+        'alert_active': row.alert_active,
+    }
+
+
+def _episode_json(row):
+    return {
+        'equipment_id': row.equipment_id,
+        'started_at': _iso(row.started_at),
+        'ended_at': _iso(row.ended_at),
+        'active': row.ended_at is None,
+        'peak_score': row.peak_score,
+        'run_label': row.run_label,
+        'mode': row.mode,
+    }
+
+
+@login_required(login_url='login')
+def live_status(request):
+    """Machine state and alert status of the live scorer (mode live only)."""
+    equipment_id = request.GET.get('equipment_id', LIVE_EQUIPMENT_ID)
+    now = timezone.now()
+
+    latest = (AnomalyScore.objects.filter(mode='live', equipment_id=equipment_id)
+              .order_by('-timestamp').first())
+    last_reading = (SensorData.objects.filter(equipment_id=equipment_id, source='pi')
+                    .order_by('-timestamp').values_list('timestamp', flat=True).first())
+    heartbeat = ScorerHeartbeat.objects.filter(equipment_id=equipment_id).first()
+    heartbeat_age = (now - heartbeat.last_poll_at).total_seconds() if heartbeat else None
+
+    return JsonResponse({
+        'equipment_id': equipment_id,
+        'mode': 'live',
+        'machine_state': latest.machine_state if latest else None,
+        'latest_score': latest.score if latest else None,
+        'latest_score_timestamp': _iso(latest.timestamp) if latest else None,
+        'threshold': latest.threshold if latest else None,
+        'alert_active': latest.alert_active if latest else False,
+        'seconds_since_last_reading': round((now - last_reading).total_seconds(), 1) if last_reading else None,
+        'scorer_alive': heartbeat_age is not None and heartbeat_age <= SCORER_ALIVE_SECONDS,
+        'scorer_last_poll_seconds_ago': round(heartbeat_age, 1) if heartbeat_age is not None else None,
+    })
+
+
+@login_required(login_url='login')
+def live_scores(request):
+    """Live scores of the last N minutes (default 10, max 1440), oldest first."""
+    equipment_id = request.GET.get('equipment_id', LIVE_EQUIPMENT_ID)
+    try:
+        minutes = int(request.GET.get('minutes', 10))
+    except ValueError:
+        return JsonResponse({'status': 'error', 'error': 'minutes must be an integer'}, status=400)
+    minutes = max(1, min(minutes, LIVE_SCORES_MAX_MINUTES))
+
+    rows = (AnomalyScore.objects.filter(mode='live', equipment_id=equipment_id,
+                                        timestamp__gte=timezone.now() - timedelta(minutes=minutes))
+            .order_by('timestamp'))
+    scores = [_score_json(r) for r in rows]
+    return JsonResponse({
+        'equipment_id': equipment_id,
+        'mode': 'live',
+        'minutes': minutes,
+        'count': len(scores),
+        'scores': scores,
+    })
+
+
+@login_required(login_url='login')
+def alerts(request):
+    """Alert episodes, newest first. ?mode=live (default), replay or all; optional equipment_id."""
+    mode = request.GET.get('mode', 'live')
+    if mode not in ('live', 'replay', 'all'):
+        return JsonResponse({'status': 'error', 'error': 'mode must be live, replay or all'}, status=400)
+    rows = AlertEpisode.objects.all()
+    if mode != 'all':
+        rows = rows.filter(mode=mode)
+    if request.GET.get('equipment_id'):
+        rows = rows.filter(equipment_id=request.GET['equipment_id'])
+    episodes = [_episode_json(r) for r in rows.order_by('-started_at')[:500]]
+    return JsonResponse({'mode': mode, 'count': len(episodes), 'episodes': episodes})
+
+
+@login_required(login_url='login')
+def replay_detail(request, label):
+    """Scores, threshold and alert periods of one replayed session (mode replay)."""
+    labels = [f'{label}_warmup', label]
+    rows = list(AnomalyScore.objects.filter(mode='replay', run_label__in=labels).order_by('timestamp'))
+    if not rows:
+        return JsonResponse({'status': 'error', 'error': f'no replay stored for {label!r}'}, status=404)
+    episodes = AlertEpisode.objects.filter(mode='replay', run_label__in=labels).order_by('started_at')
+    return JsonResponse({
+        'label': label,
+        'mode': 'replay',
+        'equipment_id': rows[0].equipment_id,
+        'threshold': rows[0].threshold,
+        'count': len(rows),
+        'scored_seconds': sum(1 for r in rows if r.score is not None),
+        'scores': [_score_json(r) for r in rows],
+        'alerts': [_episode_json(e) for e in episodes],
     })
