@@ -52,7 +52,10 @@ def load(model_dir=DEFAULT_MODEL_DIR):
 
     scaler, threshold, meta = read_metadata(model_dir)
     _, keras = import_tensorflow()
-    model = keras.models.load_model(Path(model_dir) / 'model.keras')
+    # compile=False: inference only. Restoring the training configuration fails in
+    # Keras 2.13 on Apple silicon (the model was trained with the legacy Adam
+    # optimizer); weights and architecture are loaded either way.
+    model = keras.models.load_model(Path(model_dir) / 'model.keras', compile=False)
 
     def reconstruct(sequences):
         return model.predict(sequences, verbose=0)
