@@ -192,37 +192,74 @@ on this fault, and the README will say so.
 
 All numbers in this section are printed by `analysis/negative_findings.py`, run on the raw
 Pi CSV files (`python analysis/negative_findings.py ~/motorsense-raw-data`; the raw files
-are not in the repository). Values are plateau means ± sample standard deviation. Plateau:
-for sessions with a `_warmup` segment, all windows after it; for every other session, the
-last 90 windows. Percentages are the change of the test mean relative to the reference mean.
+are not in the repository), and are also in `results/negative_findings.json`. Values are
+plateau means ± sample standard deviation. Plateau: for sessions with a `_warmup` segment,
+all windows after it; for every other session, the last 90 windows. Percentages are the
+change of the test mean relative to the reference mean.
+
+Revised on 2026-10-22: vibration and frequency bands are compared only like with like, that
+is between runs in the same phase (both measured after their warm-up segment, or both short
+runs of the same length, so the last 90 windows sit at the same time after the motors start).
+Otherwise the cell is "n/a, runs not comparable"; current is always compared. The imbalance and
+loose-mount runs are now compared with r2_test_baseline instead of r4_test_drag,
+r4_band_normal_a and r3_normal_01.
+
+### Spread between normal sessions
+
+The five valid normal sessions, windows after the warm-up segment only (480 each). Relative
+spread = (maximum − minimum) / mean of the five session means.
+
+| Session | vib_rms_g | vib_peak_g | current_ma |
+|---|---|---|---|
+| r5_normal_01 | 0.1215 | 0.3125 | 814.4 |
+| r5_normal_02 | 0.1245 | 0.3207 | 820.9 |
+| r5_normal_03 | 0.1251 | 0.3257 | 818.2 |
+| r5_normal_04_redo | 0.1136 | 0.2921 | 822.1 |
+| r5_normal_05 | 0.1113 | 0.2843 | 812.7 |
+| Minimum | 0.1113 | 0.2843 | 812.7 |
+| Maximum | 0.1251 | 0.3257 | 822.1 |
+| Relative spread | 11.5 % | 13.5 % | 1.1 % |
+
+Frequency bands (same sessions): 1 to 6 Hz 36.7 %, 6 to 20 Hz 32.6 %, 20 to 50 Hz 10.3 %,
+50 to 100 Hz 26.5 %. An effect smaller than this spread cannot be told apart from normal
+session-to-session variation on this rig. The spread comes from 8-minute sessions measured
+after their warm-up; the 180 s and 240 s runs below are measured at the end of a short run.
 
 ### Baseline shift after mechanical handling
 
-| Session | Role | Windows | vib_rms_g | vib_peak_g | current_ma |
-|---|---|---|---|---|---|
-| r2_normal_01 | reference (old baseline) | 480 | 0.0968 ± 0.0049 | 0.2388 ± 0.0291 | 822.6 ± 4.7 |
-| r3_normal_01 | new baseline | 540 | 0.1193 ± 0.0057 | 0.3135 ± 0.0353 | 815.5 ± 4.6 |
-| r4_band_normal_a | new baseline | 90 | 0.1452 ± 0.0100 | 0.3794 ± 0.0449 | 823.3 ± 2.5 |
+Reference: r2_normal_01, the normal session recorded before the rig was handled.
 
-Vibration RMS rose by 23.2 % from r2_normal_01 to r3_normal_01 (0.0968 g to 0.1193 g) and by
-49.9 % from r2_normal_01 to r4_band_normal_a, with no fault applied; current changed by
--0.9 % and +0.1 %. This is why the normal sessions used for training, validation and testing
-are separate recordings.
+| Session | Role | Windows | Phase | vib_rms_g | vib_peak_g | current_ma |
+|---|---|---|---|---|---|---|
+| r2_normal_01 | reference (old baseline) | 480 | after warm-up | 0.0968 ± 0.0049 | 0.2388 ± 0.0291 | 822.6 ± 4.7 |
+| r3_normal_01 | new baseline | 540 | after warm-up | 0.1193 ± 0.0057 | 0.3135 ± 0.0353 | 815.5 ± 4.6 |
+| r4_band_normal_a | new baseline | 90 | last 90 of a 240 s run | 0.1452 ± 0.0100 | 0.3794 ± 0.0449 | 823.3 ± 2.5 |
+
+Vibration RMS rose by 23.2 % and vibration peak by 31.3 % from r2_normal_01 to r3_normal_01
+(both after warm-up), with no fault applied; current changed by -0.9 %. Both vibration changes
+are above the normal spread. r4_band_normal_a is a 240 s run, so only its current is compared
+(+0.1 %). This is why the normal sessions used for training, validation and testing are
+separate recordings.
 
 ### Imbalance (taped weights)
 
+Reference: r2_test_baseline, the normal 180 s run recorded the same morning before the
+imbalance runs: same period and same run length.
+
 | Session | Role | Windows | vib_rms_g | vib_peak_g | current_ma |
 |---|---|---|---|---|---|
-| r4_test_drag | reference (no-effect run) | 90 | 0.1482 ± 0.0105 | 0.3779 ± 0.0429 | 824.2 ± 4.3 |
-| r4_band_normal_a | reference | 90 | 0.1452 ± 0.0100 | 0.3794 ± 0.0449 | 823.3 ± 2.5 |
+| r2_test_baseline | reference | 90 | 0.1152 ± 0.0098 | 0.2933 ± 0.0333 | 827.3 ± 4.3 |
 | r3_test_fault | imbalance | 90 | 0.1346 ± 0.0056 | 0.3494 ± 0.0386 | 823.8 ± 2.7 |
 | r3_test_fault2 | imbalance | 90 | 0.1249 ± 0.0064 | 0.3247 ± 0.0356 | 824.2 ± 2.7 |
 
-Against these references, vibration RMS of the imbalance runs was 7.3 % to 15.7 % lower,
-not higher (r3_test_fault -9.2 % and -7.3 %, r3_test_fault2 -15.7 % and -14.0 % against
-r4_test_drag and r4_band_normal_a). Current changed by 0.1 % or less.
+All three are the last 90 windows of a 180 s run. r3_test_fault: vibration RMS +16.8 %, peak
++19.1 %, current -0.4 %. r3_test_fault2: RMS +8.4 %, peak +10.7 %, current -0.4 %. The first
+run is above the normal spread in RMS and peak; the second is within it.
 
 ### Imbalance, frequency bands
+
+Reference: r4_band_normal_a, the normal 240 s run with frequency bands recorded just before
+r4_band_fault_a: same period and same run length.
 
 | Session | vib_rms_g | 1 to 6 Hz | 6 to 20 Hz | 20 to 50 Hz | 50 to 100 Hz |
 |---|---|---|---|---|---|
@@ -230,54 +267,61 @@ r4_test_drag and r4_band_normal_a). Current changed by 0.1 % or less.
 | r4_band_fault_a | 0.1457 ± 0.0091 | 0.0284 | 0.0577 | 0.0684 | 0.1077 |
 | Change | +0.3 % | -7.1 % | +4.3 % | +6.4 % | -4.3 % |
 
-Band means in g, 90 windows each. No band separates the two runs by more than 7.1 %, and the
-changes go in both directions.
+Band means in g, the last 90 windows of a 240 s run each. Vibration peak +2.6 %, current
+-0.0 %. Every change is within the normal spread of its signal, and the bands change in both
+directions.
 
 ### Loosened motor mount
 
+Reference: r2_test_baseline, the normal 180 s run recorded the same morning before the
+loose-mount run: same period and same run length.
+
 | Session | Role | Windows | vib_rms_g | vib_peak_g | current_ma |
 |---|---|---|---|---|---|
-| r3_normal_01 | reference | 540 | 0.1193 ± 0.0057 | 0.3135 ± 0.0353 | 815.5 ± 4.6 |
+| r2_test_baseline | reference | 90 | 0.1152 ± 0.0098 | 0.2933 ± 0.0333 | 827.3 ± 4.3 |
 | r3_test_loose | loose mount | 90 | 0.1246 ± 0.0098 | 0.3374 ± 0.0818 | 825.1 ± 3.6 |
 
-Vibration RMS rose by 4.4 %, vibration peak by 7.6 % and current by 1.2 %.
+Vibration RMS rose by 8.2 % (within the normal spread), vibration peak by 15.0 % (above it)
+and current changed by -0.3 %.
 
 ### Friction by hand
 
-Only seconds with current above 500 mA. r4_tune and r4_tune2 are 60 s runs, shorter than the
-180 s warm-up, so they are compared on current only: their vibration would come from the
-warm-up and be set against plateau values.
+Only seconds with current above 500 mA. Reference: r4_band_normal_a, the normal run of the
+same period. r4_tune and r4_tune2 are 60 s runs and the reference a 240 s run, so only
+current is compared.
 
-| Session | Role | Windows | current_ma | current min to max | vib_rms_g |
-|---|---|---|---|---|---|
-| r3_normal_01 | reference | 540 | 815.5 ± 4.6 | 805 to 854 | 0.1193 ± 0.0057 |
-| r4_band_normal_a | reference | 90 | 823.3 ± 2.5 | 816 to 829 | 0.1452 ± 0.0100 |
-| r4_tune | friction | 59 | 831.0 ± 4.0 | 822 to 841 | n/a, run shorter than the warm-up |
-| r4_tune2 | friction | 57 | 829.2 ± 3.2 | 819 to 835 | n/a, run shorter than the warm-up |
+| Session | Role | Windows | current_ma | current min to max |
+|---|---|---|---|---|
+| r4_band_normal_a | reference | 90 | 823.3 ± 2.5 | 816 to 829 |
+| r4_tune | friction | 59 | 831.0 ± 4.0 | 822 to 841 |
+| r4_tune2 | friction | 57 | 829.2 ± 3.2 | 819 to 835 |
 
-Current was 0.7 % to 1.9 % higher than in the references (r4_tune +1.9 % and +0.9 %,
-r4_tune2 +1.7 % and +0.7 % against r3_normal_01 and r4_band_normal_a). The two normal
-references differ from each other by 0.9 % in current (r4_band_normal_a against
-r3_normal_01), with no fault applied.
+Current was 0.9 % (r4_tune) and 0.7 % (r4_tune2) higher than in the reference, within the
+1.1 % spread between normal sessions.
 
 ### Conclusion
 
-| Fault | Effect | Normal variation without a fault |
+| Fault | Like-for-like effect | Against the normal spread |
 |---|---|---|
-| Imbalance | Vibration RMS 7.3 % to 15.7 % lower than both references, not higher | r4_band_normal_a against r3_normal_01: +21.7 %. The imbalance runs were recorded after r3_normal_01 and before the r4 references, so this shift is mixed into the comparison |
-| Imbalance, four bands | -7.1 % to +6.4 % per band, in both directions | |
-| Loosened mount | Vibration RMS +4.4 % | r3_normal_01 against r2_normal_01: +23.2 % |
-| Friction by hand | Current +0.7 % to +0.9 % against the reference from the same period (r4_band_normal_a); +1.7 % to +1.9 % against r3_normal_01 | r4_band_normal_a against r3_normal_01: +0.9 % |
+| Imbalance | r3_test_fault: RMS +16.8 %, peak +19.1 %; r3_test_fault2: RMS +8.4 %, peak +10.7 % | First run above, second within |
+| Imbalance, four bands | -7.1 % to +6.4 % per band, in both directions | Within |
+| Loosened mount | RMS +8.2 %, peak +15.0 % | RMS within, peak above |
+| Friction by hand | Current +0.7 % and +0.9 % (vibration not comparable) | Within |
 
-None of these faults produces a change that is clearly larger than the variation between
-normal sessions, so they are not detectable in this rig and are not part of the evaluation.
+Two changes are above the spread: both vibration values of one of the two imbalance runs, and
+the vibration peak of the single loose-mount run. With one or two short runs per fault, this
+neither shows that these faults are detectable on this rig nor that they are not. They are not
+part of the evaluation.
 
 ### For comparison: open motor lead
 
-| Session | Role | Windows | vib_rms_g | vib_peak_g | current_ma |
-|---|---|---|---|---|---|
-| r4_band_normal_a | reference | 90 | 0.1452 ± 0.0100 | 0.3794 ± 0.0449 | 823.3 ± 2.5 |
-| r4_test_open | one motor lead open | 90 | 0.1642 ± 0.0067 | 0.4213 ± 0.0425 | 703.2 ± 2.9 |
+Reference: r4_band_normal_a, the normal run of the same period. r4_test_open is a 180 s run
+and the reference a 240 s run, so only current is compared.
 
-Current fell by 14.6 % (823.3 to 703.2 mA) and vibration RMS rose by 13.1 %. This is the fault
+| Session | Role | Windows | current_ma |
+|---|---|---|---|
+| r4_band_normal_a | reference | 90 | 823.3 ± 2.5 |
+| r4_test_open | one motor lead open | 90 | 703.2 ± 2.9 |
+
+Current fell by 14.6 % (823.3 to 703.2 mA), far above the 1.1 % spread. This is the fault
 used in the test fault sessions.
