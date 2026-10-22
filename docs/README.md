@@ -72,6 +72,20 @@ nothing then. In an alert, the hero shows when it started, how long it has laste
 largest deviation from the "What changed" panel; it never names a cause. In Replay the chart
 and the strip stop at the playhead unless "Show whole session" is ticked.
 
+### Tabs
+
+| Tab | What it shows | Source of every number |
+|---|---|---|
+| Sensors | A trend chart per sensor with minimum, mean and maximum over the range (Live: 5 min, 30 min, 2 h, 24 h; Replay: the recorded session up to the Overview's playhead); data quality (rows, readings per minute, gaps above 5 s, time since the last reading); "Download CSV for this range" | Stored `sensor_data` rows. Charts draw at most 1200 points per series (minimum and maximum of each slice); the statistics and the CSV use every row |
+| Alerts | Alert episodes (Live by default; Replay rows carry the replay label and session name) with start, duration, peak score, status, run label and the largest deviation in the 60 s before the start; a row expands to the score 2 min either side of the start and the three deviations | `alert_episodes`, `anomaly_scores`, `sensor_data`; the deviation is the "What changed" calculation (`dashboard/calculations.py`) |
+| Maintenance | Operator log (inspection, repair, replacement, other) with add and delete-own; an inspection interval per equipment; "Next inspection due" (last logged inspection plus the interval, labelled "Set by the operator. Not a prediction."); live alerts without a logged inspection afterwards | `maintenance_entries`, `inspection_intervals` (migration 0006), `alert_episodes` |
+| Evaluation | The scope caveat, per-second and per-session tables for the five detectors with the seed spread, statements derived from the numbers, the negative findings, score small multiples for the validation and test sessions, the environment | `results/metrics.json`, `results/negative_findings.json` (written by `python analysis/negative_findings.py <raw data dir>`), and the evaluation's score files in `results/scores/` (not committed; without them the small multiples say so) |
+| Setup | The testbed and sensors, a pipeline diagram, model inputs, machine states, the alert rule, data retention and known limitations | `dashboard/ml/constants.py` and the evaluation plan |
+
+The testbed photo (`docs/media/testbed_photo.jpg`) is not in the repository; the Setup tab
+reserves a labelled place for it. Run `python manage.py migrate` once for the maintenance
+tables.
+
 ### Static files and browser caching
 
 Every static URL carries a content version, so a browser never runs stale JavaScript or CSS
