@@ -28,8 +28,8 @@
 
     <dl class="quality" aria-label="Data quality">
       <div class="fact"><dt>Rows shown</dt><dd class="num" id="q-rows"><span class="skeleton">000</span></dd></div>
-      <div class="fact"><dt>Readings per minute</dt><dd class="num" id="q-rpm"><span class="skeleton">00.0</span></dd></div>
-      <div class="fact"><dt>Gaps above {{ max_gap }} s</dt><dd class="num" id="q-gaps"><span class="skeleton">0</span></dd></div>
+      <div class="fact"><dt>Readings per minute, averaged over the range</dt><dd class="num" id="q-rpm"><span class="skeleton">00.0</span></dd></div>
+      <div class="fact"><dt>Gaps above {{ max_gap }} s between readings</dt><dd class="num" id="q-gaps"><span class="skeleton">0</span></dd></div>
       <div class="fact"><dt>{% if mode == 'replay' %}Position{% else %}Since last reading{% endif %}</dt><dd class="num" id="q-last"><span class="skeleton">0 s</span></dd></div>
     </dl>
     <p class="card-note" id="reduced-note" hidden>Charts draw at most {{ chart_points }} points per series (the minimum and maximum of each slice are kept); minimum, mean, maximum and the CSV use every stored row.</p>

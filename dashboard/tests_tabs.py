@@ -287,6 +287,14 @@ class MaintenanceViewTests(TabTestCase):
         due = timezone.localtime(entry.performed_at + timedelta(days=14))
         self.assertIn(due.strftime('%Y-%m-%d %H:%M'), html)
         self.assertIn('Set by the operator. Not a prediction.', html)
+        self.assertIn('In 1\xa0week, 4\xa0days.', html)              # 14 days after an inspection 2 days ago
+
+    def test_overdue_inspection(self):
+        MaintenanceEntry.objects.create(equipment=self.eq, performed_at=timezone.now() - timedelta(days=20, hours=1),
+                                        performed_by=self.user, kind='inspection')
+        InspectionInterval.objects.create(equipment=self.eq, days=14, set_by=self.user)
+        html = self.client.get(reverse('dashboard:maintenance')).content.decode()
+        self.assertIn('Overdue by 6\xa0days', html)
 
     def test_validation(self):
         future = (timezone.localtime() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M')

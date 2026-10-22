@@ -606,7 +606,11 @@ select {
 .data-table thead th { font-size: var(--fs-xs); font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
 .data-table .num-col { text-align: right; }
 .data-table tbody th { font-weight: 600; }
-.metrics-table td, .metrics-table th { white-space: nowrap; }
+.metrics-table th, .metrics-table td { padding: var(--space-3) var(--space-2); }
+.metrics-table thead th { white-space: normal; }
+.metrics-table td { white-space: nowrap; }
+.metrics-table td .cell-note { white-space: normal; min-width: 7.5em; }
+.metrics-table tbody th { min-width: 11em; }
 .reference-row td { color: var(--text-muted); }
 .alert-row { cursor: pointer; }
 .alert-row:hover, .alert-row[aria-expanded="true"] { background: var(--surface-2); }
@@ -622,7 +626,8 @@ select {
 }
 .status-chip.open { border-color: var(--alert); color: var(--alert); background: var(--alert-tint); }
 .replay-chip { border-color: var(--replay); color: var(--replay); background: var(--replay-tint); margin-left: var(--space-2); }
-figcaption .replay-chip { margin-left: 0; }
+figcaption .replay-chip { margin-left: 0; justify-self: start; }
+.status-chip, .replay-chip { width: max-content; }
 
 /* maintenance forms */
 .stack-form { display: grid; gap: var(--space-4); margin-top: var(--space-4); }

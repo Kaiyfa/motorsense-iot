@@ -19,7 +19,7 @@
       {% if next_due %}
         <p class="big-value num">{{ next_due|date:"Y-m-d H:i" }}</p>
         <p class="card-sub">
-          {% if next_due < now %}Overdue since {{ next_due|timesince:now }}.{% else %}In {{ now|timeuntil:next_due }}.{% endif %}
+          {% if next_due < now %}Overdue by {{ next_due|timesince:now }}.{% else %}In {{ next_due|timeuntil:now }}.{% endif %}
           Last logged inspection {{ last_inspection|date:"Y-m-d H:i" }} plus {{ interval.days }} day{{ interval.days|pluralize }}.
         </p>
       {% elif not interval %}

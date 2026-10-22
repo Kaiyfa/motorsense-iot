@@ -81,12 +81,12 @@ function render(data) {
   body.innerHTML = data.episodes.map((e) => `
     <tr class="alert-row${e.mode === 'replay' ? ' is-replay' : ''}" data-id="${e.id}" tabindex="0" aria-expanded="false"
         aria-controls="detail-${e.id}">
-      <td data-label="Start">${startCell(e)}</td>
-      <td data-label="Duration" class="num">${fmt.duration(e.duration_seconds)}${e.open ? ' so far' : ''}</td>
-      <td data-label="Peak score" class="num num-col">${fmt.score(e.peak_score)}</td>
-      <td data-label="Status">${statusCell(e)}</td>
-      <td data-label="Run label"><span class="mono">${esc(e.run_label)}</span></td>
-      <td data-label="Largest deviation">${esc(deviationText(e.largest_deviation))}</td>
+      <td data-label="Start"><div>${startCell(e)}</div></td>
+      <td data-label="Duration" class="num"><div>${fmt.duration(e.duration_seconds)}${e.open ? ' so far' : ''}</div></td>
+      <td data-label="Peak score" class="num num-col"><div>${fmt.score(e.peak_score)}</div></td>
+      <td data-label="Status"><div>${statusCell(e)}</div></td>
+      <td data-label="Run label"><div class="mono">${esc(e.run_label)}</div></td>
+      <td data-label="Largest deviation"><div>${esc(deviationText(e.largest_deviation))}</div></td>
     </tr>
     <tr class="detail-row" id="detail-${e.id}" hidden><td colspan="6"><div class="alert-detail"></div></td></tr>`).join('');
   body.querySelectorAll('.alert-row').forEach((row) => {
