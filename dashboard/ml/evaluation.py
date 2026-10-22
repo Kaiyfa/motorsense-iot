@@ -12,10 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from dashboard.ml import dataset
-
-SEQUENCE_LENGTH = 30
-THRESHOLD_PERCENTILE = 99.5
-ALERT_SECONDS = 10
+from dashboard.ml.constants import ALERT_SECONDS, SEQUENCE_LENGTH, THRESHOLD_PERCENTILE  # noqa: F401
 
 NORMAL = 'normal'
 FAULT = 'fault'

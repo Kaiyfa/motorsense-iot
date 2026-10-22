@@ -11,6 +11,15 @@ FEATURES = ["vib_rms_g", "vib_peak_g", "current"]
 # Exported for plotting only, never model inputs
 PLOT_ONLY = ["bus_v", "temperature"]
 
+# Column name used here -> field of dashboard.models.SensorData
+SENSORDATA_FIELDS = {
+    "vib_rms_g": "vibration_rms",
+    "vib_peak_g": "vibration_peak",
+    "current": "current",          # amperes
+    "bus_v": "bus_voltage",
+    "temperature": "temperature",
+}
+
 # Roles
 TRAIN = "train"
 VALIDATION = "validation"

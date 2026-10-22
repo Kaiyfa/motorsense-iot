@@ -16,21 +16,17 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from dashboard.ml import dataset
+from dashboard.ml.constants import MAX_GAP_SECONDS
 from dashboard.models import SensorData
 
 MIN_ROWS = 470
 MAX_ROWS = 481
-MAX_GAP_SECONDS = 5.0
 
-# CSV column -> SensorData field
+# CSV column -> SensorData field (bus_v and temperature are for plotting only)
 COLUMNS = {
     'timestamp': 'timestamp',
     'run_label': 'run_label',
-    'vib_rms_g': 'vibration_rms',
-    'vib_peak_g': 'vibration_peak',
-    'current': 'current',          # amperes
-    'bus_v': 'bus_voltage',        # plotting only
-    'temperature': 'temperature',  # plotting only
+    **{name: dataset.SENSORDATA_FIELDS[name] for name in dataset.FEATURES + dataset.PLOT_ONLY},
 }
 
 

@@ -141,5 +141,24 @@ class ScalerTests(unittest.TestCase):
         self.assertAlmostEqual(scaler['x']['std'], np.std([0.0, 2.0, 4.0, 6.0]))
 
 
+class SharedConstantsTests(unittest.TestCase):
+    """The evaluation and the live scorer must use the same fixed settings."""
+
+    def test_values_fixed_by_the_plan(self):
+        from dashboard.ml import constants as c
+        self.assertEqual(c.SEQUENCE_LENGTH, 30)
+        self.assertEqual(c.THRESHOLD_PERCENTILE, 99.5)
+        self.assertEqual(c.ALERT_SECONDS, 10)
+        self.assertEqual(c.MAX_GAP_SECONDS, 5.0)
+        self.assertEqual(c.IDLE_CURRENT_A, 0.5)
+        self.assertEqual(c.WARMUP_SECONDS, 180.0)
+
+    def test_evaluation_uses_the_shared_constants(self):
+        from dashboard.ml import constants as c
+        self.assertIs(ev.SEQUENCE_LENGTH, c.SEQUENCE_LENGTH)
+        self.assertIs(ev.THRESHOLD_PERCENTILE, c.THRESHOLD_PERCENTILE)
+        self.assertIs(ev.ALERT_SECONDS, c.ALERT_SECONDS)
+
+
 if __name__ == '__main__':
     unittest.main()
