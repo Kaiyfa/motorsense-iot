@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static versioned_static %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -6,7 +6,8 @@
   <meta name="color-scheme" content="dark light">
   <title>{% block title %}MotorSense IoT{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232dd4bf' stroke-width='2.5'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="{% static 'dashboard/css/app.css' %}">
+  <link rel="stylesheet" href="{% vstatic 'dashboard/css/app.css' %}">
+  {% js_importmap %}
 </head>
 <body data-mode="{{ mode|default:'live' }}">
 {% block body %}
@@ -44,6 +45,10 @@
   <main id="main" class="page">
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // narrow screens: keep the active tab in view in the scrollable tab row
+    document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  </script>
 {% endblock %}
 {% block scripts %}{% endblock %}
 </body>

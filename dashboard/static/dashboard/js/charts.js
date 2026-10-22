@@ -1,5 +1,5 @@
 // Score chart (Chart.js, vendored) and SVG sparklines.
-import * as fmt from './format.js';
+import * as fmt from 'ms/format.js';
 
 const Chart = window.Chart;
 
@@ -11,7 +11,6 @@ function palette() {
   return {
     text: cssVar('--text'),
     muted: cssVar('--text-muted'),
-    faint: cssVar('--text-faint'),
     grid: cssVar('--border'),
     alert: cssVar('--alert'),
     alertTint: cssVar('--alert-tint'),
@@ -20,7 +19,20 @@ function palette() {
   };
 }
 
-// Draws alert episodes as shaded bands behind the data.
+const LABEL_FONT = '600 12px system-ui, -apple-system, "Segoe UI", sans-serif';
+
+function drawLabel(ctx, text, x, y, colour, background, area) {
+  ctx.font = LABEL_FONT;
+  const w = ctx.measureText(text).width + 12;
+  const lx = Math.min(Math.max(x, area.left), area.right - w);
+  ctx.fillStyle = background;
+  ctx.fillRect(lx, y, w, 18);
+  ctx.fillStyle = colour;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, lx + 6, y + 9);
+}
+
+// Alert episodes as shaded bands behind the data.
 const episodesPlugin = {
   id: 'msEpisodes',
   beforeDatasetsDraw(chart, _args, opts) {
@@ -28,22 +40,16 @@ const episodesPlugin = {
     if (!opts.episodes || !opts.episodes.length) return;
     ctx.save();
     ctx.fillStyle = opts.fill;
-    ctx.strokeStyle = opts.edge;
-    ctx.lineWidth = 1;
     for (const ep of opts.episodes) {
       const x0 = Math.max(area.left, x.getPixelForValue(ep.start));
       const x1 = Math.min(area.right, x.getPixelForValue(ep.end));
-      if (x1 <= area.left || x0 >= area.right || x1 <= x0) continue;
-      ctx.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
-      ctx.beginPath();
-      ctx.moveTo(x0 + 0.5, area.top); ctx.lineTo(x0 + 0.5, area.bottom);
-      ctx.stroke();
+      if (x1 > x0) ctx.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
     }
     ctx.restore();
   },
 };
 
-// Dashed threshold line with its value, and an optional playhead.
+// Threshold line with its value, labelled alert-start markers and the replay playhead.
 const overlayPlugin = {
   id: 'msOverlay',
   afterDatasetsDraw(chart, _args, opts) {
@@ -58,16 +64,27 @@ const overlayPlugin = {
         ctx.beginPath(); ctx.moveTo(area.left, py); ctx.lineTo(area.right, py); ctx.stroke();
         ctx.setLineDash([]);
         const label = `Threshold ${fmt.score(opts.threshold)}`;
-        ctx.font = '600 12px system-ui, -apple-system, "Segoe UI", sans-serif';
+        ctx.font = LABEL_FONT;
         const w = ctx.measureText(label).width + 12;
-        const lx = area.right - w - 4;
-        const ly = py - 22 < area.top ? py + 4 : py - 22;
-        ctx.fillStyle = opts.surface;
-        ctx.fillRect(lx, ly, w, 18);
-        ctx.fillStyle = opts.alert;
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, lx + 6, ly + 9);
+        drawLabel(ctx, label, area.right - w - 4, py - 22 < area.top ? py + 4 : py - 22, opts.alert, opts.surface, area);
       }
+    }
+    // alert starts: a solid line and a label, stacked when they would overlap
+    let row = 0;
+    let lastRight = -Infinity;
+    for (const start of opts.alertStarts || []) {
+      const px = x.getPixelForValue(start);
+      if (px < area.left || px > area.right) continue;
+      ctx.strokeStyle = opts.alert;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px + 0.5, area.top); ctx.lineTo(px + 0.5, area.bottom); ctx.stroke();
+      const text = `Alert started ${fmt.clock(start)}`;
+      ctx.font = LABEL_FONT;
+      const w = ctx.measureText(text).width + 12;
+      const lx = px + 4 + w > area.right ? px - 4 - w : px + 4;
+      row = lx < lastRight ? row + 1 : 0;
+      drawLabel(ctx, text, lx, area.top + 4 + row * 20, opts.alert, opts.surface, area);
+      lastRight = lx + w;
     }
     if (Number.isFinite(opts.playhead)) {
       const px = x.getPixelForValue(opts.playhead);
@@ -81,6 +98,14 @@ const overlayPlugin = {
   },
 };
 
+// Reports the plot area so the state strip and the empty-state overlay can align with it.
+const layoutPlugin = {
+  id: 'msLayout',
+  afterLayout(chart, _args, opts) {
+    if (opts.onLayout) opts.onLayout({ ...chart.chartArea }, chart.width);
+  },
+};
+
 // Ticks on round clock times (local time), at most maxCount of them.
 const TICK_STEPS = [10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].map((s) => s * 1000);
 function timeTicks(min, max, maxCount) {
@@ -91,7 +116,7 @@ function timeTicks(min, max, maxCount) {
   return { step, values };
 }
 
-export function createScoreChart(canvas) {
+export function createScoreChart(canvas, onLayout) {
   let colours = palette();
   let threshold = null;
   let tickStep = 60000;
@@ -146,9 +171,10 @@ export function createScoreChart(canvas) {
         },
         msEpisodes: { episodes: [] },
         msOverlay: {},
+        msLayout: { onLayout },
       },
     },
-    plugins: [episodesPlugin, overlayPlugin],
+    plugins: [episodesPlugin, overlayPlugin, layoutPlugin],
   });
 
   function applyColours() {
@@ -165,13 +191,11 @@ export function createScoreChart(canvas) {
     o.scales.y.grid = { color: colours.grid };
     o.scales.y.title.color = colours.muted;
     o.plugins.msEpisodes.fill = colours.alertTint;
-    o.plugins.msEpisodes.edge = colours.alert;
     Object.assign(o.plugins.msOverlay, { alert: colours.alert, replay: colours.replay, surface: colours.surface });
-    o.plugins.tooltip.backgroundColor = colours.surface;
-    o.plugins.tooltip.titleColor = colours.text;
-    o.plugins.tooltip.bodyColor = colours.text;
-    o.plugins.tooltip.borderColor = colours.grid;
-    o.plugins.tooltip.borderWidth = 1;
+    Object.assign(o.plugins.tooltip, {
+      backgroundColor: colours.surface, titleColor: colours.text, bodyColor: colours.text,
+      borderColor: colours.grid, borderWidth: 1,
+    });
   }
   applyColours();
 
@@ -182,7 +206,7 @@ export function createScoreChart(canvas) {
   });
 
   return {
-    update({ points, threshold: t, episodes, playhead, xMin, xMax, narrow }) {
+    update({ points, threshold: t, episodes, alertStarts, playhead, xMin, xMax, narrow }) {
       threshold = Number.isFinite(t) ? t : null;
       chart.data.datasets[0].data = points;
       const o = chart.options;
@@ -191,12 +215,12 @@ export function createScoreChart(canvas) {
       maxTicks = narrow ? 4 : 7;
       const values = points.map((p) => p.y).filter((v) => v !== null && v > 0);
       if (threshold !== null) values.push(threshold);
-      if (values.length) {
-        o.scales.y.min = 10 ** Math.floor(Math.log10(Math.min(...values)));
-        o.scales.y.max = 10 ** Math.ceil(Math.log10(Math.max(...values) * 1.05));
-      }
+      if (!values.length) values.push(0.1, 10);
+      o.scales.y.min = 10 ** Math.floor(Math.log10(Math.min(...values)));
+      o.scales.y.max = 10 ** Math.ceil(Math.log10(Math.max(...values) * 1.05));
       o.plugins.msEpisodes.episodes = episodes || [];
       o.plugins.msOverlay.threshold = threshold;
+      o.plugins.msOverlay.alertStarts = alertStarts || [];
       o.plugins.msOverlay.playhead = Number.isFinite(playhead) ? playhead : NaN;
       chart.update('none');
     },

@@ -262,7 +262,6 @@ main.page {
 }
 .card-sub { font-size: var(--fs-sm); color: var(--text-muted); }
 .card-note { margin-top: var(--space-4); font-size: var(--fs-xs); color: var(--text-faint); }
-.card-note.context { color: var(--text-muted); font-size: var(--fs-sm); }
 .card-note[hidden] { display: none; }
 
 /* ------------------------------------------------------------------ hero */
@@ -346,14 +345,67 @@ main.page {
 .segmented button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); }
 
 .chart-box { position: relative; height: 320px; }
-.chart-empty {
-  position: absolute; inset: 0;
-  display: grid; place-items: center; text-align: center;
-  padding: var(--space-5);
-  color: var(--text-muted); font-size: var(--fs-base);
-  background: var(--surface);
+/* state timeline strip: aligned with the plot area of the score chart by JS */
+.timeline-wrap { position: relative; margin-bottom: var(--space-2); }
+.timeline {
+  position: relative;
+  height: 24px;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  overflow: hidden;
 }
-.chart-empty[hidden] { display: none; }
+.timeline:focus-visible { outline-offset: 3px; }
+.seg {
+  position: absolute; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--surface);
+  font-size: 11px; font-weight: 650; letter-spacing: 0.02em;
+  color: var(--bg);
+  white-space: nowrap; overflow: hidden;
+}
+.seg.active { box-shadow: inset 0 0 0 2px var(--text); }
+.seg-normal { background: var(--normal); }
+.seg-running { background: var(--normal-tint); color: var(--normal); box-shadow: inset 0 0 0 1px var(--normal); }
+.seg-warming { background: var(--warm); }
+.seg-alert { background: var(--alert); }
+.seg-idle { background: var(--idle); }
+.seg-offline { background: transparent; color: var(--idle); box-shadow: inset 0 0 0 1px var(--idle); }
+.seg-unscored { background: var(--idle-tint); color: var(--idle); box-shadow: inset 0 0 0 1px var(--idle); }
+.seg-running.active, .seg-offline.active, .seg-unscored.active { box-shadow: inset 0 0 0 2px var(--text); }
+.timeline-tip {
+  position: absolute; bottom: calc(100% + 6px); z-index: 30;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-s);
+  box-shadow: var(--shadow-2);
+  font-size: var(--fs-sm); white-space: nowrap;
+  pointer-events: none;
+}
+.timeline-tip[hidden] { display: none; }
+
+/* empty score chart: the state timeline fills the plot area, with what is going on */
+.chart-fill { position: absolute; display: grid; place-items: center; border-radius: var(--radius-s); overflow: hidden; }
+.chart-fill[hidden] { display: none; }
+.chart-fill-segs { position: absolute; inset: 0; }
+.fill-seg {
+  position: absolute; top: 0; bottom: 0;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: var(--space-3);
+  border-right: 1px dashed var(--border);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted);
+}
+.fill-seg.seg-normal, .fill-seg.seg-running { background: var(--normal-tint); color: var(--normal); }
+.fill-seg.seg-warming { background: var(--warm-tint); color: var(--warm); }
+.fill-seg.seg-alert { background: var(--alert-tint); color: var(--alert); }
+.fill-seg.seg-idle, .fill-seg.seg-unscored { background: var(--idle-tint); color: var(--text-muted); }
+.fill-seg.seg-offline { background: transparent; color: var(--text-muted); box-shadow: none; }
+.chart-fill-text {
+  position: relative; max-width: 46ch; margin: 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m);
+  text-align: center; color: var(--text); font-size: var(--fs-base);
+}
 .chart-legend {
   display: flex; flex-wrap: wrap; gap: var(--space-4);
   margin-top: var(--space-3); font-size: var(--fs-xs); color: var(--text-muted);
@@ -362,6 +414,25 @@ main.page {
 .legend-swatch.threshold { border-top: 2px dashed var(--alert); }
 .legend-swatch.episode { height: 10px; border: 0; background: var(--alert-tint); outline: 1px solid var(--alert); }
 .legend-swatch.playhead { border-top: 2px solid var(--replay); }
+.legend-swatch.strip { height: 10px; border: 0; background: var(--normal); border-radius: 2px; }
+
+.toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--replay); margin: 0; }
+
+.state-note { margin-top: var(--space-2); font-size: var(--fs-base); color: var(--text-muted); max-width: 72ch; }
+.state-note[hidden] { display: none; }
+
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 10px;
+  border: 1px solid var(--idle); border-radius: var(--radius-full);
+  background: var(--idle-tint); color: var(--text);
+  font-size: var(--fs-xs); font-weight: 650; letter-spacing: 0.04em;
+}
+.badge[hidden] { display: none; }
+.changes-inactive { margin: 0 0 var(--space-4); font-size: var(--fs-sm); color: var(--text-muted); }
+.changes-inactive[hidden] { display: none; }
+.changes-panel.inactive .changes { opacity: 0.45; }
 
 /* what changed */
 .changes { display: grid; gap: var(--space-5); }
@@ -396,7 +467,9 @@ main.page {
 .tile-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
 .tile-name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
 .tile-value { font-size: var(--fs-2xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: -0.01em; }
-.tile-unit { font-size: var(--fs-md); font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+/* Units keep their case (V, A, g, °C). At half the size of the number a capital V
+   looked like a lower-case v, so the unit is set larger and aligned to the cap height. */
+.tile-unit { font-size: 0.62em; font-weight: 600; color: var(--text-muted); margin-left: 5px; text-transform: none; }
 .tile-foot { font-size: var(--fs-xs); color: var(--text-muted); min-height: 1.5em; }
 .sparkline { width: 100%; height: 40px; display: block; color: var(--text-muted); }
 .tile.stale .tile-value { color: var(--text-muted); }
@@ -515,11 +588,8 @@ select {
   .app-header { flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
   .brand { flex-basis: 100%; }
   .user-menu { margin-left: auto; }
-  .tabs {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0; padding: 0 var(--space-2);
-  }
-  .tabs a { text-align: center; padding: var(--space-3) var(--space-1); }
+  .tabs { padding: 0 var(--space-2); scroll-padding-inline: var(--space-6); }
+  .tabs a { padding: var(--space-3) var(--space-3); }
   .replay-banner { padding: var(--space-3) var(--space-4); }
   main.page { padding: var(--space-4); gap: var(--space-4); }
   .card { padding: var(--space-4); }

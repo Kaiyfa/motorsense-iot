@@ -55,3 +55,13 @@ export function timezoneLabel() {
   const m = Math.abs(minutes) % 60;
   return `UTC${sign}${h}${m ? ':' + String(m).padStart(2, '0') : ''}`;
 }
+
+// Elapsed time as m:ss (or h:mm:ss)
+export function mmss(seconds) {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '—';
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rest = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${rest}` : `${m}:${rest}`;
+}

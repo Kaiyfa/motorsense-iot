@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load versioned_static %}
 {% block title %}{% if mode == 'replay' %}Replay {{ replay_label }}{% else %}Live{% endif %} · Overview · MotorSense IoT{% endblock %}
 
 {% block content %}
@@ -65,6 +65,7 @@
         <p class="state-kicker" id="state-kicker">{% if mode == 'replay' %}Machine state at the playhead{% else %}Machine state{% endif %}</p>
         <p class="state-label" id="state-label" role="status" aria-live="polite"><span class="skeleton">Loading state</span></p>
         <p class="state-detail" id="state-detail"><span class="skeleton">Loading the latest readings and scores</span></p>
+        <p class="state-note" id="state-detail-2" hidden></p>
       </div>
       <div class="ring" id="warmup-ring" hidden>
         <svg viewBox="0 0 84 84" aria-hidden="true">
@@ -96,17 +97,29 @@
             <button type="button" data-minutes="120" aria-pressed="false">2 h</button>
           </div>
         {% else %}
-          <p class="card-sub">Whole session</p>
+          <label class="toggle">
+            <input type="checkbox" id="show-whole">
+            <span>Show whole session</span>
+          </label>
         {% endif %}
+      </div>
+      <div class="timeline-wrap">
+        <div class="timeline" id="timeline" tabindex="0" role="group" aria-label="State timeline"></div>
+        <div class="timeline-tip" id="timeline-tip" role="tooltip" hidden></div>
+        <p class="visually-hidden" id="timeline-live" aria-live="polite"></p>
       </div>
       <div class="chart-box">
         <canvas id="score-chart" role="img" aria-label="Anomaly score chart"></canvas>
-        <div class="chart-empty" id="chart-empty"><span class="skeleton">Loading scores</span></div>
+        <div class="chart-fill" id="chart-fill">
+          <div class="chart-fill-segs" id="chart-fill-segs" aria-hidden="true"></div>
+          <p class="chart-fill-text" id="chart-fill-text"><span class="skeleton">Loading scores</span></p>
+        </div>
       </div>
       <div class="chart-legend" aria-hidden="true">
+        <span><span class="legend-swatch strip"></span>State strip: Offline, Idle, Warm-up, Running, Normal, Alert</span>
         <span><span class="legend-swatch"></span>Score</span>
         <span><span class="legend-swatch threshold"></span>Alert threshold</span>
-        <span><span class="legend-swatch episode"></span>Alert episode</span>
+        <span><span class="legend-swatch episode"></span>Alert episode, line at its start</span>
         {% if mode == 'replay' %}<span><span class="legend-swatch playhead"></span>Playhead</span>{% endif %}
       </div>
       {% if mode == 'replay' %}
@@ -117,13 +130,15 @@
       <p class="visually-hidden" id="chart-summary" aria-live="polite"></p>
     </section>
 
-    <section class="card" aria-labelledby="changes-title">
+    <section class="card changes-panel" id="changes-panel" aria-labelledby="changes-title">
       <div class="card-head">
         <div>
           <h2 id="changes-title">What changed</h2>
           <p class="card-sub" id="changes-sub">Last 60 s against the training baseline</p>
         </div>
+        <span class="badge" id="changes-badge" hidden></span>
       </div>
+      <p class="changes-inactive" id="changes-inactive" hidden></p>
       <div class="changes" id="changes">
         {% for f in model_features %}
           <div class="change-row" data-feature="{{ f.key }}">
@@ -139,9 +154,6 @@
           </div>
         {% endfor %}
       </div>
-      <p class="card-note context" id="changes-context" hidden>
-        The baseline comes from running data. While the machine is idle or warming up, large deviations are expected.
-      </p>
       <p class="card-note" id="changes-note">
         Mean of the last 60 s minus the training mean, in training standard deviations
         (<span id="changes-scale">bar scale ±5 σ</span>). This is data, not a diagnosis.
@@ -175,11 +187,11 @@
 
 {% block scripts %}
   {% if mode == 'live' or replay_available %}
-    <script src="{% static 'dashboard/vendor/chartjs-4.4.0/chart.umd.js' %}"></script>
+    <script src="{% vstatic 'dashboard/vendor/chartjs-4.4.0/chart.umd.js' %}"></script>
     {% if mode == 'replay' %}
-      <script type="module" src="{% static 'dashboard/js/replay.js' %}"></script>
+      <script type="module">import 'ms/replay.js';</script>
     {% else %}
-      <script type="module" src="{% static 'dashboard/js/live.js' %}"></script>
+      <script type="module">import 'ms/live.js';</script>
     {% endif %}
   {% endif %}
 {% endblock %}

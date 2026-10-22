@@ -80,14 +80,14 @@ class ModeTests(TestCase):
     def test_live_page_has_no_replay_banner(self):
         html = self.client.get(reverse('dashboard:dashboard')).content.decode()
         self.assertNotIn('Not live data', html)
-        self.assertIn('live.js', html)
-        self.assertNotIn('replay.js', html)
+        self.assertIn("import 'ms/live.js';", html)
+        self.assertNotIn("import 'ms/replay.js';", html)
 
     def test_replay_page_always_shows_the_banner(self):
         html = self.client.get(reverse('dashboard:replay') + '?session=r5_fault_open_01').content.decode()
         self.assertIn('REPLAY of recorded session <span class="mono">r5_fault_open_01</span>. Not live data.', html)
         self.assertIn('has not been replayed into the database yet', html)   # nothing replayed in the test DB
-        self.assertNotIn('live.js', html)
+        self.assertNotIn("import 'ms/live.js';", html)
 
     def test_replay_page_with_replayed_session(self):
         t0 = datetime(2026, 1, 1, tzinfo=dt_timezone.utc)
@@ -95,7 +95,7 @@ class ModeTests(TestCase):
                                     machine_state='idle', mode='replay')
         html = self.client.get(reverse('dashboard:replay') + '?session=r5_normal_05').content.decode()
         self.assertIn('REPLAY of recorded session <span class="mono">r5_normal_05</span>. Not live data.', html)
-        self.assertIn('replay.js', html)
+        self.assertIn("import 'ms/replay.js';", html)
         self.assertIn('Fault: one motor disconnected, session 1 (not replayed yet)', html)
 
     def test_unknown_replay_session_falls_back_to_a_known_one(self):
@@ -108,3 +108,70 @@ class ModeTests(TestCase):
                                '?mode=replay&session=r5_fault_open_02').content.decode()
         self.assertIn('Not live data', html)
         self.assertIn('Coming in part 2.', html)
+
+
+class UnitTextTests(TestCase):
+    """Units keep their case: the tiles render V, A, g and °C exactly, and no CSS changes the case."""
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_user('tester', password='a-long-password'))
+
+    def test_tile_units_render_with_their_case(self):
+        import re
+        html = self.client.get(reverse('dashboard:dashboard')).content.decode()
+        tiles = re.findall(r'<h3 class="tile-name" id="tile-(\w+)">([^<]+)</h3>.*?<span class="tile-unit">([^<]+)</span>',
+                           html, flags=re.S)
+        self.assertEqual([(key, unit) for key, _, unit in tiles], [
+            ('vibration_rms', 'g'), ('vibration_peak', 'g'), ('current', 'A'),
+            ('bus_voltage', 'V'), ('temperature', '°C')])
+        self.assertIn('"unit": "V"', html)   # the page config used for the tile range lines
+
+    def test_no_css_rule_changes_the_case_of_units(self):
+        from pathlib import Path
+        css = (Path(__file__).resolve().parent / 'static/dashboard/css/app.css').read_text()
+        self.assertNotIn('lowercase', css)
+        self.assertNotIn('capitalize', css)
+        self.assertNotIn('small-caps', css)
+        block = css[css.index('.tile-unit {'):]
+        block = block[:block.index('}')]
+        self.assertIn('text-transform: none', block)
+
+
+class StaticVersionTests(TestCase):
+    def setUp(self):
+        self.client.force_login(User.objects.create_user('tester', password='a-long-password'))
+
+    def test_assets_and_modules_carry_a_content_version(self):
+        import hashlib
+        import json
+        import re
+        from django.contrib.staticfiles import finders
+        from dashboard.templatetags.versioned_static import JS_MODULES
+
+        html = self.client.get(reverse('dashboard:dashboard')).content.decode()
+        importmap = json.loads(re.search(r'<script type="importmap">(.*?)</script>', html, flags=re.S).group(1))
+        self.assertEqual(set(importmap['imports']), set(JS_MODULES))
+        for spec, path in JS_MODULES.items():
+            digest = hashlib.sha256(open(finders.find(path), 'rb').read()).hexdigest()[:12]
+            self.assertEqual(importmap['imports'][spec], f'/static/{path}?v={digest}')
+        self.assertRegex(html, r'/static/dashboard/css/app\.css\?v=[0-9a-f]{12}')
+        self.assertRegex(html, r'/static/dashboard/vendor/chartjs-4\.4\.0/chart\.umd\.js\?v=[0-9a-f]{12}')
+
+    def test_version_changes_when_the_file_changes(self):
+        import os
+        import tempfile
+        from django.test import override_settings
+        from dashboard.templatetags.versioned_static import file_version
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'probe.js')
+            with open(path, 'w') as f:
+                f.write('one')
+            with override_settings(STATICFILES_DIRS=[tmp]):
+                first = file_version('probe.js')
+                with open(path, 'w') as f:
+                    f.write('two')
+                os.utime(path, ns=(os.stat(path).st_atime_ns, os.stat(path).st_mtime_ns + 1_000_000))
+                second = file_version('probe.js')
+        self.assertNotEqual(first, second)
+        self.assertEqual(file_version('no/such/file.js'), 'missing')

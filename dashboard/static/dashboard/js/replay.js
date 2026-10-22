@@ -1,7 +1,11 @@
 // Replay mode: steps through the recorded scores and readings of one session.
 // Reads /api/replay/<label>/ and /api/replay/<label>/readings/ only; nothing here is live.
-import { config, createOverview, describeState, computeChanges, getJSON, showError, STATE_NAMES } from './overview.js';
-import * as fmt from './format.js';
+// By default the chart and the state strip show nothing after the playhead.
+import {
+  config, createOverview, describeState, addAlertDetails, computeChanges, parseSegments,
+  getJSON, showError, STATE_NAMES,
+} from 'ms/overview.js';
+import * as fmt from 'ms/format.js';
 
 const view = createOverview();
 const $ = (id) => document.getElementById(id);
@@ -9,10 +13,12 @@ const $ = (id) => document.getElementById(id);
 const playBtn = $('play-btn');
 const scrubber = $('scrubber');
 const jumpBtn = $('jump-alert');
+const wholeToggle = $('show-whole');
 
 let rows = [];
 let readings = null;
 let episodes = [];
+let timeline = [];
 let threshold = null;
 let index = 0;
 let speed = 1;
@@ -39,6 +45,7 @@ playBtn.addEventListener('click', () => (playTimer ? pause() : play()));
 scrubber.addEventListener('input', () => { pause(); go(Number(scrubber.value)); });
 scrubber.addEventListener('change', rememberPosition);
 jumpBtn.addEventListener('click', () => { pause(); go(firstAlert); rememberPosition(); });
+wholeToggle.addEventListener('change', () => go(index));
 
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
@@ -98,6 +105,7 @@ async function load() {
       end: a.open_at_end_of_recording ? last + 1000 : Date.parse(a.ended_at),
       openAtEnd: a.open_at_end_of_recording,
     }));
+    timeline = detail.timeline;
     readings = {
       t: rec.data.timestamps.map((x) => Date.parse(x)),
       vibration_rms: rec.data.vibration_rms, vibration_peak: rec.data.vibration_peak, current: rec.data.current,
@@ -149,9 +157,16 @@ function go(i) {
   index = i;
   const r = rows[i];
   const t0 = rows[0].t;
-  const tEnd = rows[rows.length - 1].t;
+  const tEnd = rows[rows.length - 1].t + 1000;
+  const whole = wholeToggle.checked;
+  const visibleEnd = whole ? tEnd : r.t + 1000;   // nothing after the playhead unless asked
 
-  const state = describeState({ ...r, threshold });
+  const changes = computeChanges(readings, r.t);
+  const episode = episodes.find((e) => e.start <= r.t && r.t < e.end);
+  let state = describeState({ ...r, threshold });
+  state = addAlertDetails(state, {
+    alertSinceMs: episode ? episode.start : NaN, nowMs: r.t, score: r.score, threshold, changes,
+  });
   view.renderHero(state, [
     { label: `${STATE_NAMES[r.machine_state] || 'In this state'} for`,
       value: fmt.duration((r.t - rows[r.stateStart].t) / 1000), small: `since ${fmt.clock(rows[r.stateStart].t)}` },
@@ -159,22 +174,29 @@ function go(i) {
     { value: `${i + 1} / ${rows.length}`, small: `${fmt.duration((r.t - t0) / 1000)} into the recording` },
   ]);
 
+  const visible = rows.filter((x) => x.t < visibleEnd);
+  const visibleEpisodes = episodes.filter((e) => e.start < visibleEnd)
+    .map((e) => ({ ...e, end: Math.min(e.end, visibleEnd) }));
+  const segments = parseSegments(timeline, whole ? null : visibleEnd);
   const scored = rows.filter((x) => x.score !== null).length;
-  const open = episodes.some((e) => e.openAtEnd);
+  const open = visibleEpisodes.some((e) => e.openAtEnd && e.end >= tEnd);
   view.renderChart({
-    points: rows.map((x) => ({ x: x.t, y: x.score })),
-    threshold, episodes, playhead: r.t, xMin: t0, xMax: tEnd + 1000,
-    emptyMessage: 'This recording has no scored seconds.',
-    summary: `Replay of ${config.session}: ${scored} scored seconds, threshold ${fmt.score(threshold)}, ` +
-             `${episodes.length} alert episode${episodes.length === 1 ? '' : 's'}` +
-             `${open ? ', the last one still active when the recording ended' : ''}. ` +
-             `Playhead at ${fmt.clock(r.t)}, score ${fmt.score(r.score)}.`,
+    points: visible.map((x) => ({ x: x.t, y: x.score })),
+    threshold, episodes: visibleEpisodes, alertStarts: visibleEpisodes.map((e) => e.start),
+    playhead: r.t, xMin: t0, xMax: tEnd, segments,
+    emptyMessage: r.machine_state === 'warming_up'
+      ? `Warming up: nothing is scored for the first ${config.warmupSeconds} s after the motors start.`
+      : r.machine_state === 'idle' ? `Idle: current at or below ${config.idleCurrentA} A, so nothing is scored.`
+        : `Running: filling the ${config.sequenceLength} s buffer; the first score follows.`,
+    summary: `Replay of ${config.session}: ${scored} scored seconds in the recording, threshold ${fmt.score(threshold)}. ` +
+             `${whole ? 'Whole session shown' : 'Shown up to the playhead'}, ${visibleEpisodes.length} alert ` +
+             `episode${visibleEpisodes.length === 1 ? '' : 's'} visible. Playhead at ${fmt.clock(r.t)}, score ${fmt.score(r.score)}.`,
   });
   const note = $('chart-note');
   if (note) note.hidden = !open;
 
-  view.renderChanges(computeChanges(readings, r.t), `No readings in the ${config.changesWindowSeconds} s before the playhead`,
-    r.machine_state);
+  const inactive = r.machine_state === 'idle' || r.machine_state === 'warming_up' ? 'Not running' : null;
+  view.renderChanges(changes, `No readings in the ${config.changesWindowSeconds} s before the playhead`, inactive);
   view.renderTiles(readings, r.t, 'No readings in the 5 min before the playhead');
 
   scrubber.value = String(i);
