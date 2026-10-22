@@ -399,6 +399,7 @@ main.page {
 .tile-unit { font-size: var(--fs-md); font-weight: 600; color: var(--text-muted); margin-left: 4px; }
 .tile-foot { font-size: var(--fs-xs); color: var(--text-muted); min-height: 1.5em; }
 .sparkline { width: 100%; height: 40px; display: block; color: var(--text-muted); }
+.tile.stale .tile-value { color: var(--text-muted); }
 .sparkline path { fill: none; stroke: currentColor; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 
 /* info tooltip */

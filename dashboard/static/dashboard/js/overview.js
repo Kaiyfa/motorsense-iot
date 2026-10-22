@@ -186,7 +186,8 @@ export function createOverview() {
     }
   }
 
-  function renderTiles(readings, endMs, emptyMessage) {
+  // staleSeconds: set when no reading arrived recently (offline); the tiles then say so.
+  function renderTiles(readings, endMs, emptyMessage, staleSeconds = null) {
     const fromMs = endMs - config.tileWindowSeconds * 1000;
     for (const tile of config.tiles) {
       const el = document.querySelector(`.tile[data-key="${tile.key}"]`);
@@ -203,9 +204,11 @@ export function createOverview() {
         continue;
       }
       setText(valueEl, fmt.fixed(values[values.length - 1], tile.digits));
+      el.classList.toggle('stale', staleSeconds !== null);
       el.querySelector('[data-role="spark"]').setAttribute('d', sparkPath(series, fromMs, endMs, tile.minSpan));
+      const range = `${fmt.fixed(Math.min(...values), tile.digits)} to ${fmt.fixed(Math.max(...values), tile.digits)} over 5 min`;
       setText(el.querySelector('[data-role="foot"]'),
-        `${fmt.fixed(Math.min(...values), tile.digits)} to ${fmt.fixed(Math.max(...values), tile.digits)} over 5 min`);
+        staleSeconds !== null ? `Last reading ${fmt.ago(staleSeconds)}. ${range}` : range);
     }
   }
 

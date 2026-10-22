@@ -161,7 +161,9 @@ function render(status, scores, history) {
   };
   view.renderChanges(computeChanges(readings, now), `No readings in the last ${config.changesWindowSeconds} s`,
     status.machine_state);
-  view.renderTiles(readings, now, 'No readings in the last 5 min');
+  const age = status.seconds_since_last_reading;
+  view.renderTiles(readings, now, 'No readings in the last 5 min',
+    age !== null && age > config.liveMaxAgeSeconds ? age : null);
 }
 
 poll();
