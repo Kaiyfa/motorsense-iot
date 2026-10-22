@@ -71,10 +71,17 @@ def fit_scaler(sessions, features):
 
 def standardise(session, features, scaler):
     """(n_seconds, n_features) array of standardised features for one session."""
-    return np.stack(
-        [(session['features'][name] - scaler[name]['mean']) / scaler[name]['std'] for name in features],
-        axis=1,
+    return standardise_array(
+        np.stack([session['features'][name] for name in features], axis=1), features, scaler
     )
+
+
+def standardise_array(raw, features, scaler):
+    """Standardise a (n_seconds, n_features) array whose columns are `features`, in that order."""
+    raw = np.asarray(raw, dtype=float)
+    mean = np.array([scaler[name]['mean'] for name in features])
+    std = np.array([scaler[name]['std'] for name in features])
+    return (raw - mean) / std
 
 
 def build_sequences(values, length=SEQUENCE_LENGTH):
@@ -96,6 +103,11 @@ def sequences_for_sessions(arrays, length=SEQUENCE_LENGTH):
     """Concatenate per-session sequences; each session is windowed on its own."""
     parts = [build_sequences(a, length) for a in arrays]
     return np.concatenate(parts) if parts else np.empty((0, length, 0))
+
+
+def reconstruction_scores(sequences, reconstruction):
+    """Score of each sequence: mean squared reconstruction error over all time steps and features."""
+    return np.mean((np.asarray(sequences) - np.asarray(reconstruction)) ** 2, axis=(1, 2))
 
 
 def causal_scores(sequence_scores, n_seconds, length=SEQUENCE_LENGTH):
@@ -138,24 +150,47 @@ def above_threshold(scores, threshold):
         return np.where(np.isnan(scores), False, scores > threshold)
 
 
+class AlertRule:
+    """
+    The alert rule, one second at a time (used offline by alert_state and
+    online by the live scorer).
+
+    The alert fires on the run_length-th consecutive second above the threshold
+    and stays on while the score stays above it.
+    """
+
+    def __init__(self, run_length=ALERT_SECONDS):
+        self.run_length = run_length
+        self.run = 0
+
+    def update(self, is_above):
+        """Feed one second. Returns (alert_on, fired_now)."""
+        self.run = self.run + 1 if is_above else 0
+        return self.run >= self.run_length, self.run == self.run_length
+
+    def reset(self):
+        self.run = 0
+
+    @property
+    def active(self):
+        return self.run >= self.run_length
+
+
 def alert_state(above, run_length=ALERT_SECONDS):
     """
     Apply the alert rule to a boolean array.
 
-    The alert fires on the run_length-th consecutive second above the threshold
-    and stays on while the score stays above it. Returns (alert_on, episode_starts)
-    where episode_starts are the indices at which an alert fired.
+    Returns (alert_on, episode_starts) where episode_starts are the indices at
+    which an alert fired.
     """
     above = np.asarray(above, dtype=bool)
     alert_on = np.zeros(len(above), dtype=bool)
     starts = []
-    run = 0
+    rule = AlertRule(run_length)
     for i, is_above in enumerate(above):
-        run = run + 1 if is_above else 0
-        if run >= run_length:
-            alert_on[i] = True
-            if run == run_length:
-                starts.append(i)
+        alert_on[i], fired = rule.update(bool(is_above))
+        if fired:
+            starts.append(i)
     return alert_on, starts
 
 

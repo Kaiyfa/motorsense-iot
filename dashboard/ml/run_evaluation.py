@@ -129,7 +129,7 @@ def train_and_score(keras, sessions, scaler, features, seed):
     for label, values in standardised.items():
         seqs = ev.build_sequences(values).astype('float32')
         reconstruction = model.predict(seqs, batch_size=256, verbose=0)
-        sequence_scores = np.mean((seqs - reconstruction) ** 2, axis=(1, 2))
+        sequence_scores = ev.reconstruction_scores(seqs, reconstruction)
         scores[label] = ev.causal_scores(sequence_scores, len(values))
 
     info = {
