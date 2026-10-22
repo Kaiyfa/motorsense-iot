@@ -380,6 +380,21 @@ class AlertViewTests(TabTestCase):
         self.assertEqual([d['feature'] for d in data['deviations']], ['vib_rms_g', 'vib_peak_g', 'current'])
         self.assertEqual(self.client.get(reverse('dashboard:alert_detail', args=[999999])).status_code, 404)
 
+    def test_detail_has_the_first_60_seconds_of_the_alert(self):
+        with mock.patch('dashboard.views_tabs._model_metadata', return_value=(BASELINE, 2.95)):
+            data = self.client.get(reverse('dashboard:alert_detail', args=[self.episode.id])).json()
+        self.assertEqual(data['deviation_seconds'], 60)
+        before = {d['feature']: d for d in data['deviations']}
+        after = {d['feature']: d for d in data['deviations_after']}
+        # (start, start + 60 s]: the readings after the start second, all at 0.7 A (start + 1 s to start + 59 s)
+        self.assertEqual(after['current']['n'], 59)
+        self.assertAlmostEqual(after['current']['z'], (0.7 - 0.8) / 0.005)
+        self.assertAlmostEqual(before['current']['z'], ((59 * 0.8 + 0.7) / 60 - 0.8) / 0.005)
+        # the same calculation as the window before the start, only shifted by 60 s
+        readings = list(SensorData.objects.values('timestamp', 'vibration_rms', 'vibration_peak', 'current'))
+        same = calc.window_deviations(readings, BASELINE, self.start + timedelta(seconds=60))
+        self.assertEqual([d['z'] for d in same], [d['z'] for d in data['deviations_after']])
+
 
 class MaintenanceViewTests(TabTestCase):
     def post(self, name, data, args=None):

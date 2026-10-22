@@ -201,13 +201,18 @@ def sensor_csv(request):
 
 # --------------------------------------------------------------------------- alerts
 
-def _episode_deviations(episode, baseline):
+def _episode_deviations(episode, baseline, after=False):
+    """
+    The "What changed" calculation for the 60 s up to and including the alert start, or
+    (after=True) for the first 60 s of the alert: the 60 s after the start, (start, start + 60 s].
+    """
+    end = episode.started_at + timedelta(seconds=calc.DEVIATION_WINDOW_SECONDS if after else 0)
     readings = list(SensorData.objects.filter(
         equipment_id=episode.equipment_id, source='pi',
-        timestamp__gt=episode.started_at - timedelta(seconds=calc.DEVIATION_WINDOW_SECONDS),
-        timestamp__lte=episode.started_at,
+        timestamp__gt=end - timedelta(seconds=calc.DEVIATION_WINDOW_SECONDS),
+        timestamp__lte=end,
     ).values('timestamp', 'vibration_rms', 'vibration_peak', 'current'))
-    return calc.window_deviations(readings, baseline, episode.started_at)
+    return calc.window_deviations(readings, baseline, end)
 
 
 def _session_of(run_label):
@@ -284,7 +289,10 @@ def alert_table(request):
 
 @login_required(login_url='login')
 def alert_detail(request, episode_id):
-    """Scores from 2 minutes before to 2 minutes after the start, and the three deviations."""
+    """
+    Scores from 2 minutes before to 2 minutes after the start, and the three deviations in
+    the 60 s before the start and in the first 60 s of the alert.
+    """
     episode = get_object_or_404(AlertEpisode, pk=episode_id)
     start = episode.started_at - timedelta(seconds=DETAIL_SECONDS)
     end = episode.started_at + timedelta(seconds=DETAIL_SECONDS)
@@ -292,14 +300,17 @@ def alert_detail(request, episode_id):
                                          timestamp__gte=start, timestamp__lte=end).order_by('timestamp')
     scaler, threshold = _model_metadata()
     devs = _episode_deviations(episode, scaler)
+    devs_after = _episode_deviations(episode, scaler, after=True)
     rows = [_score_json(r) for r in scores]
+    keys = ('feature', 'name', 'unit', 'digits', 'n', 'mean', 'latest', 'z', 'baseline_mean')
     return JsonResponse({
         'episode': _episode_row(episode, scaler, timezone.now()),
         'window_start': start.isoformat(), 'window_end': end.isoformat(),
         'threshold': rows[0]['threshold'] if rows else threshold,
         'scores': rows,
-        'deviations': [{k: d[k] for k in ('feature', 'name', 'unit', 'digits', 'n', 'mean', 'latest', 'z',
-                                          'baseline_mean')} for d in devs],
+        'deviations': [{k: d[k] for k in keys} for d in devs],
+        'deviations_after': [{k: d[k] for k in keys} for d in devs_after],
+        'deviation_seconds': calc.DEVIATION_WINDOW_SECONDS,
     })
 
 

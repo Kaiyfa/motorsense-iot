@@ -1,5 +1,5 @@
 // Alerts tab: table of stored alert episodes; a row expands to the scores around its start
-// and the three feature deviations in the 60 s before it.
+// and the three feature deviations in the 60 s before it and in the first 60 s of the alert.
 import * as fmt from 'ms/format.js';
 import { createScoreChart } from 'ms/charts.js';
 import { getJSON, showError } from 'ms/net.js';
@@ -118,12 +118,37 @@ async function toggleRow(row, forceOpen = false) {
   }
 }
 
+// One deviation panel: the "What changed" bars for one 60 s window.
+function deviationPanel(title, devs, scale, seconds) {
+  const n = Math.max(0, ...devs.map((d) => d.n));
+  const coverage = n < seconds ? `<p class="card-note">${n} of ${seconds} seconds have readings.</p>` : '';
+  return `<div>
+    <h3 class="detail-title">${esc(title)}</h3>
+    <div class="changes">${devs.map((d) => {
+      const half = d.z === null ? 0 : Math.min(Math.abs(d.z) / scale, 1) * 50;
+      const left = d.z === null || d.z >= 0 ? 50 : 50 - half;
+      return `<div class="change-row">
+        <div class="change-head"><span class="change-name">${esc(d.name)}</span>
+          <span class="change-z num">${d.z === null ? '—' : `${fmt.signed(d.z, 1)}${nb}σ`}</span></div>
+        <div class="change-bar" aria-hidden="true"><div class="change-fill" style="left:${left}%;width:${half}%"></div></div>
+        <div class="change-meta num"><span>Baseline ${fmt.fixed(d.baseline_mean, d.digits)}${nb}${d.unit}</span>
+          <span>${d.n ? `Latest ${fmt.fixed(d.latest, d.digits)}${nb}${d.unit}` : 'No readings'}</span></div>
+      </div>`;
+    }).join('')}</div>
+    ${coverage}
+  </div>`;
+}
+
 function renderDetail(box, data) {
   const start = Date.parse(data.episode.started_at);
   const end = data.episode.ended_at ? Date.parse(data.episode.ended_at) : Date.parse(data.window_end);
   const xMin = Date.parse(data.window_start);
   const xMax = Date.parse(data.window_end);
-  const scale = Math.max(5, Math.ceil(Math.max(0, ...data.deviations.filter((d) => d.z !== null).map((d) => Math.abs(d.z)))));
+  const seconds = data.deviation_seconds;
+  const all = [...data.deviations, ...data.deviations_after].filter((d) => d.z !== null).map((d) => Math.abs(d.z));
+  const scale = Math.max(5, Math.ceil(Math.max(0, ...all)));
+  const shortAlert = data.episode.ended_at && data.episode.duration_seconds < seconds
+    ? ` The alert lasted ${fmt.duration(data.episode.duration_seconds)}; the window still covers the ${seconds}${nb}s after its start.` : '';
   box.innerHTML = `
     <div class="detail-grid">
       <div>
@@ -131,21 +156,9 @@ function renderDetail(box, data) {
         <div class="chart-box small"><canvas role="img" aria-label="Score around the alert start"></canvas></div>
         <p class="card-note">${data.scores.length} stored seconds in this window${data.episode.mode === 'replay' ? ' (replay, not live data)' : ''}.</p>
       </div>
-      <div>
-        <h3 class="detail-title">Deviation in the 60 s before the start</h3>
-        <div class="changes">${data.deviations.map((d) => {
-          const half = d.z === null ? 0 : Math.min(Math.abs(d.z) / scale, 1) * 50;
-          const left = d.z === null || d.z >= 0 ? 50 : 50 - half;
-          return `<div class="change-row">
-            <div class="change-head"><span class="change-name">${esc(d.name)}</span>
-              <span class="change-z num">${d.z === null ? '—' : `${fmt.signed(d.z, 1)}${nb}σ`}</span></div>
-            <div class="change-bar" aria-hidden="true"><div class="change-fill" style="left:${left}%;width:${half}%"></div></div>
-            <div class="change-meta num"><span>Baseline ${fmt.fixed(d.baseline_mean, d.digits)}${nb}${d.unit}</span>
-              <span>${d.n ? `Latest ${fmt.fixed(d.latest, d.digits)}${nb}${d.unit}` : 'No readings'}</span></div>
-          </div>`;
-        }).join('')}</div>
-        <p class="card-note">Bar scale ±${scale}${nb}σ. This is data, not a diagnosis.</p>
-      </div>
+      ${deviationPanel(`Deviation in the ${seconds} s before the start`, data.deviations, scale, seconds)}
+      ${deviationPanel(`Deviation in the first ${seconds} s of the alert`, data.deviations_after, scale, seconds)}
+      <p class="card-note detail-foot">Both windows use the same calculation: the mean over the window minus the training mean, in training standard deviations. Before: the ${seconds}${nb}s up to and including the start. First ${seconds}${nb}s of the alert: the ${seconds}${nb}s after the start.${shortAlert} Bar scale ±${scale}${nb}σ. This is data, not a diagnosis.</p>
     </div>`;
   const chart = createScoreChart(box.querySelector('canvas'), () => {});
   chart.update({
