@@ -114,6 +114,74 @@ reported together with the underlying counts (true positives, false positives, f
 negatives, true negatives). All five detectors above are reported in one table, per window
 and per session.
 
+## Implementation details (fixed before training, 2026-10-22)
+
+Written and committed before any training code exists. None of these settings may be
+changed after any result is seen.
+
+### Data
+
+| Item | Setting |
+|---|---|
+| Input | The CSV files written by `python manage.py export_dataset` (`data/dataset/`), roles as above |
+| Standardisation | Each feature uses the mean and population standard deviation (divide by n) of all rows of the three training sessions pooled |
+| Sequences | 30 consecutive seconds, stride 1 second, built within one session only, never across a session boundary |
+| Score of second t | The score of the sequence that ends at t (causal) |
+| Unscored seconds | The first 29 seconds of every session have no score and are not counted in any metric, for every method including the baselines, so that all methods are judged on the same seconds (479 rows give 450 scored seconds) |
+
+### Autoencoders
+
+| Item | Setting |
+|---|---|
+| Architecture | LSTM encoder (32 units), RepeatVector(30), LSTM decoder (32 units, full sequence), TimeDistributed Dense to the number of features |
+| Loss and optimiser | Mean squared error; Adam, learning rate 0.001 (Keras 2.13 on Apple silicon uses `optimizers.legacy.Adam`, the same algorithm) |
+| Training | Batch size 32, exactly 50 epochs, no early stopping, no validation data passed to training, training sequences of the three sessions pooled and shuffled every epoch (Keras default), no hyperparameter search |
+| Sequence score | Mean squared reconstruction error over all time steps and features, in standardised units |
+| Seeds | Five models per feature set, seeds 0 to 4, set with `keras.utils.set_random_seed`; training on CPU only, because the Metal GPU is not guaranteed to be deterministic |
+| Feature sets | All three features (vib_rms_g, vib_peak_g, current); vibration only (vib_rms_g, vib_peak_g); current only |
+
+### Baselines
+
+The two baselines have no learning. The score of a second is the absolute z-score of one
+feature, |x - training mean| / training standard deviation, using the same mean and
+standard deviation as the autoencoders. A threshold on the raw value alone could never
+detect a drop in current. One baseline uses `current`, the other `vib_rms_g`.
+
+### Threshold and alert rule
+
+| Item | Setting |
+|---|---|
+| Threshold | 99.5th percentile of the method's own scores on the validation session (numpy default, linear interpolation), set separately for every method and seed |
+| Above | Score strictly greater than the threshold |
+| Alert | Fires on the 10th consecutive second above the threshold and stays on while the score stays above it |
+| Episode | Starts when the alert fires and ends at the first second that is not above the threshold; a new episode needs another 10 consecutive seconds above it |
+
+### Metrics
+
+Computed on the test sessions only (r5_normal_05, r5_fault_open_01, r5_fault_open_02,
+r5_fault_open_03).
+
+| Level | Definition |
+|---|---|
+| Per second | Every second of a fault session is labelled fault, every second of the normal session normal; a second is predicted fault when its score is above the threshold. Report TP, FP, FN, TN, precision, recall and false positive rate |
+| Per session | Whether at least one alert fired, the number of alert episodes, and the delay in seconds from the first scored second to the second on which the first alert fires (minimum 9 s). A session is predicted fault if at least one alert fired; report session-level TP, FP, FN, TN, precision and recall |
+| Validation | The number of alert episodes on the validation session itself, because the threshold is set on it |
+| Seeds | For the autoencoders, every metric as mean, standard deviation, min and max over the five seeds; the baselines are deterministic and reported once |
+
+All methods are reported in one table.
+
+### Outputs and environment
+
+| Output | Location |
+|---|---|
+| Metrics, settings and exact environment (package versions, git commit, clean or dirty tree) | `results/metrics.json`, committed |
+| Per-session scores | `results/scores/`, not committed |
+| Model, scaler values and threshold of the three-feature model, seed 0 | `ml_models/motorsense_ae/`, not committed; the older files in `ml_models/` are left untouched |
+
+The environment is the project venv: Python 3.10.13, tensorflow-macos 2.13.0, keras 2.13.1.
+The venv also lists a `tensorflow 2.20.0` package; it is not the one imported
+(`import tensorflow` gives 2.13.0). The installation is left as it is.
+
 ## Expected outcome
 
 Recorded before training. The fixed threshold on current is likely to separate the normal
