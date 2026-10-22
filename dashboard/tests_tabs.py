@@ -405,6 +405,13 @@ class MaintenanceViewTests(TabTestCase):
         now = timezone.localtime()
         self.assertIn(f'value="{now.day} {now:%b %Y, %H:}', form_html)
         self.assertNotIn('datetime-local', form_html)
+
+    def test_kind_placeholder(self):
+        html = self.client.get(reverse('dashboard:maintenance')).content.decode()
+        self.assertIn('<option value="" selected>Select kind</option>', html)
+        self.assertNotIn('---------', html)
+        self.post('dashboard:maintenance_add', {'performed_at': '1 Oct 2026, 10:00', 'kind': ''})
+        self.assertEqual(MaintenanceEntry.objects.count(), 0)
         for text, expected in [('5 Oct 2026, 07:23', (5, 7, 23, 0)), ('05 Oct 2026, 07:23:31', (5, 7, 23, 31)),
                                ('2026-10-05T07:23', (5, 7, 23, 0))]:
             MaintenanceEntry.objects.all().delete()

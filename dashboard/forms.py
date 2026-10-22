@@ -26,6 +26,10 @@ class MaintenanceEntryForm(forms.ModelForm):
         labels = {'kind': 'Kind', 'notes': 'Notes'}
         widgets = {'notes': forms.Textarea(attrs={'rows': 3, 'maxlength': 2000})}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['kind'].choices = [('', 'Select kind')] + list(MaintenanceEntry.KIND_CHOICES)
+
     def clean_performed_at(self):
         value = self.cleaned_data['performed_at']
         if value > timezone.now() + FUTURE_TOLERANCE:
