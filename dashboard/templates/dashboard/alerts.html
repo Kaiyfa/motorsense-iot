@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% if mode == 'replay' %} · Replay {{ replay_label }}{% endif %} · MotorSense IoT{% endblock %}
+
+{% block content %}
+  <div class="notice error" id="error-notice" role="alert" hidden></div>
+
+  <section class="card" aria-labelledby="alerts-title">
+    <div class="card-head">
+      <div>
+        <h1 id="alerts-title" class="page-title">Alerts</h1>
+        <p class="card-sub">Alert episodes: fired after {{ alert_seconds }} consecutive seconds above the threshold, ended at the first second not above it</p>
+      </div>
+      <div class="head-actions">
+        <div class="segmented" role="group" aria-label="Mode" id="mode-filter">
+          <button type="button" data-mode="live" aria-pressed="false">Live</button>
+          <button type="button" data-mode="replay" aria-pressed="false">Replay</button>
+          <button type="button" data-mode="all" aria-pressed="false">All</button>
+        </div>
+        <div class="segmented" role="group" aria-label="Live alerts started within" id="days-filter">
+          {% for days, name in ranges.items %}
+            <button type="button" data-days="{{ days }}" aria-pressed="{% if days == 7 %}true{% else %}false{% endif %}">{{ name }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <p class="card-note" id="range-note">The range applies to live alerts. Replayed alerts keep the dates of their recording and are always listed.</p>
+
+    <div class="table-wrap">
+      <table class="data-table" id="alert-table">
+        <caption class="visually-hidden">Alert episodes</caption>
+        <thead>
+          <tr>
+            <th scope="col">Start</th>
+            <th scope="col">Duration</th>
+            <th scope="col" class="num-col">Peak score</th>
+            <th scope="col">Status</th>
+            <th scope="col">Run label</th>
+            <th scope="col">Largest deviation, 60 s before the start</th>
+          </tr>
+        </thead>
+        <tbody id="alert-rows">
+          <tr><td colspan="6"><span class="skeleton">Loading alerts</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="card-note">Deviation: mean of the 60 s before the alert started minus the training mean, in training standard deviations, as in "What changed" on the Overview. This is data, not a diagnosis.</p>
+  </section>
+
+  {{ config|json_script:"page-config" }}
+{% endblock %}
+
+{% block scripts %}
+  {% load versioned_static %}
+  <script src="{% vstatic 'dashboard/vendor/chartjs-4.4.0/chart.umd.js' %}"></script>
+  <script type="module">import 'ms/alerts.js';</script>
+{% endblock %}

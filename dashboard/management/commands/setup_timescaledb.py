@@ -4,6 +4,8 @@ Custom management command to set up TimescaleDB hypertables
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 
+from dashboard.ml.constants import RAW_RETENTION_DAYS
+
 # Tables converted to hypertables, partitioned on their timestamp column
 HYPERTABLES = [
     ('sensor_data', 'timestamp', '1 day'),
@@ -57,11 +59,12 @@ class Command(BaseCommand):
                 """)
                 self.stdout.write(self.style.SUCCESS('✓ Continuous aggregate created'))
 
-                # Add retention policy (keep raw data for 30 days)
-                cursor.execute("""
-                    SELECT add_retention_policy('sensor_data', INTERVAL '30 days', if_not_exists => TRUE);
-                """)
-                self.stdout.write(self.style.SUCCESS('✓ Retention policy added (30 days)'))
+                # Add retention policy (keep raw data for RAW_RETENTION_DAYS days)
+                cursor.execute(
+                    "SELECT add_retention_policy('sensor_data', %s::interval, if_not_exists => TRUE);",
+                    [f'{RAW_RETENTION_DAYS} days'],
+                )
+                self.stdout.write(self.style.SUCCESS(f'✓ Retention policy added ({RAW_RETENTION_DAYS} days)'))
 
                 self.stdout.write(self.style.SUCCESS('\n✅ TimescaleDB setup completed successfully!'))
 

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load msformat %}
+{% block title %}Maintenance · MotorSense IoT{% endblock %}
+
+{% block content %}
+  {% if messages %}
+    {% for message in messages %}
+      <p class="notice {% if message.tags == 'error' %}error{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>
+    {% endfor %}
+  {% endif %}
+
+  <h1 class="page-title">Maintenance</h1>
+
+  {% if not equipment %}
+    <p class="notice">EQ-001 does not exist yet: it is created by the first reading from the Pi. Maintenance can be logged after that.</p>
+  {% else %}
+  <div class="two-col">
+    <section class="card" aria-labelledby="due-title">
+      <h2 id="due-title">Next inspection due</h2>
+      {% if next_due %}
+        <p class="big-value num">{{ next_due|msdatetime }}</p>
+        <p class="card-sub">
+          {% if next_due < now %}Overdue by {{ next_due|timesince:now }}.{% else %}In {{ next_due|timeuntil:now }}.{% endif %}
+          Last logged inspection {{ last_inspection|msdatetime }} plus {{ interval.days }} day{{ interval.days|pluralize }}.
+        </p>
+      {% elif not interval %}
+        <p class="big-value muted">No interval set</p>
+        <p class="card-sub">Set an inspection interval below.</p>
+      {% else %}
+        <p class="big-value muted">No inspection logged</p>
+        <p class="card-sub">Log an inspection below; the due date is that inspection plus {{ interval.days }} day{{ interval.days|pluralize }}.</p>
+      {% endif %}
+      <p class="badge-line"><span class="badge">Set by the operator. Not a prediction.</span></p>
+
+      <form method="post" action="{% url 'dashboard:maintenance_interval' %}" class="inline-form">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_days">{{ interval_form.days.label }}</label>
+          {{ interval_form.days }}
+        </div>
+        <button type="submit" class="btn">Save interval</button>
+      </form>
+      {% if interval %}
+        <p class="card-note">Set by {{ interval.set_by.username }} on {{ interval.set_at|msdatetime }}.</p>
+      {% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="add-title">
+      <h2 id="add-title">Log maintenance</h2>
+      <form method="post" action="{% url 'dashboard:maintenance_add' %}" class="stack-form">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_performed_at">{{ entry_form.performed_at.label }}</label>
+          {{ entry_form.performed_at }}
+          <span class="cell-note" id="performed-at-hint">As {{ input_example }}; seconds optional.</span>
+        </div>
+        <div class="field">
+          <label for="id_kind">{{ entry_form.kind.label }}</label>
+          {{ entry_form.kind }}
+        </div>
+        <div class="field">
+          <label for="id_notes">{{ entry_form.notes.label }} <span class="faint">(optional, up to 2000 characters)</span></label>
+          {{ entry_form.notes }}
+        </div>
+        <p class="card-note">Logged as {{ user.username }}.</p>
+        <button type="submit" class="btn btn-live">Add entry</button>
+      </form>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="unchecked-title">
+    <h2 id="unchecked-title">Live alerts without a logged inspection afterwards</h2>
+    <p class="card-sub">Live alert episodes that started after the last logged inspection. Replayed alerts are not real events and are not listed.</p>
+    {% if unchecked_alerts %}
+      <ul class="plain-list">
+        {% for a in unchecked_alerts %}
+          <li><a href="{% url 'dashboard:alerts_page' %}?open={{ a.id }}&amp;filter=live"><span class="num">{{ a.started_at|msdatetime }}</span></a>
+            <span class="muted">· peak score {{ a.peak_score|floatformat:3 }} · {% if a.ended_at %}closed{% else %}open{% endif %} · <span class="mono">{{ a.run_label }}</span></span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">{% if live_alert_count %}None: every live alert has an inspection logged at or after its start.{% else %}No live alerts are stored.{% endif %}</p>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="log-title">
+    <h2 id="log-title">Operator log</h2>
+    {% if entries %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th scope="col">Performed at</th><th scope="col">Kind</th><th scope="col">By</th><th scope="col">Notes</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>
+            {% for e in entries %}
+              <tr>
+                <td data-label="Performed at" class="num">{{ e.performed_at|msdatetime }}</td>
+                <td data-label="Kind">{{ e.get_kind_display }}</td>
+                <td data-label="By">{{ e.performed_by.username }}</td>
+                <td data-label="Notes">{{ e.notes|default:"—"|linebreaksbr }}</td>
+                <td data-label="">
+                  {% if e.performed_by_id == user.id %}
+                    <form method="post" action="{% url 'dashboard:maintenance_delete' e.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-small" aria-label="Delete the {{ e.get_kind_display|lower }} entry of {{ e.performed_at|msdatetime }}">Delete</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">No maintenance logged yet.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+{% endblock %}

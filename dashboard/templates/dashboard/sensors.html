@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Sensors{% if mode == 'replay' %} · Replay {{ replay_label }}{% endif %} · MotorSense IoT{% endblock %}
+
+{% block content %}
+  <div class="notice error" id="error-notice" role="alert" hidden></div>
+
+  <section class="card" aria-labelledby="sensors-title">
+    <div class="card-head">
+      <div>
+        <h1 id="sensors-title" class="page-title">Sensors</h1>
+        <p class="card-sub" id="range-label">
+          {% if mode == 'replay' %}Recorded session <span class="mono">{{ replay_label }}</span>, from its start to the Overview's playhead{% else %}Stored readings of EQ-001{% endif %}
+        </p>
+      </div>
+      <div class="head-actions">
+        {% if mode == 'live' %}
+          <div class="segmented" role="group" aria-label="Time range" id="range">
+            {% for minutes, name in ranges.items %}
+              <button type="button" data-minutes="{{ minutes }}" aria-pressed="{% if minutes == 30 %}true{% else %}false{% endif %}">{{ name }}</button>
+            {% endfor %}
+          </div>
+        {% else %}
+          <a class="btn" href="{% url 'dashboard:replay' %}?session={{ replay_label }}{% if request.GET.pos %}&amp;pos={{ request.GET.pos }}{% endif %}">Move the playhead on the Overview</a>
+        {% endif %}
+        <a class="btn" id="csv-link" href="#" download>Download CSV for this range</a>
+      </div>
+    </div>
+
+    <dl class="quality" aria-label="Data quality">
+      <div class="fact"><dt>Rows shown</dt><dd class="num" id="q-rows"><span class="skeleton">000</span></dd></div>
+      <div class="fact"><dt>Readings per minute, averaged over the range</dt><dd class="num" id="q-rpm"><span class="skeleton">00.0</span></dd></div>
+      <div class="fact"><dt>Gaps above {{ max_gap }} s between readings</dt><dd class="num" id="q-gaps"><span class="skeleton">0</span></dd></div>
+      <div class="fact"><dt>{% if mode == 'replay' %}Position{% else %}Since last reading{% endif %}</dt><dd class="num" id="q-last"><span class="skeleton">0 s</span></dd></div>
+    </dl>
+    <p class="card-note" id="reduced-note" hidden>Charts draw at most {{ chart_points }} points per series (the minimum and maximum of each slice are kept); minimum, mean, maximum and the CSV use every stored row.</p>
+  </section>
+
+  <div class="sensor-list">
+    {% for t in tiles %}
+      <section class="card sensor-row" data-key="{{ t.key }}" aria-labelledby="sensor-{{ t.key }}">
+        <div class="sensor-chart">
+          <div class="tile-head">
+            <h2 class="tile-name" id="sensor-{{ t.key }}">{{ t.name }} <span class="faint">({{ t.unit }})</span></h2>
+            <span class="info">
+              <button type="button" class="info-btn" aria-describedby="sinfo-{{ t.key }}" aria-label="About {{ t.name }}">i</button>
+              <span class="info-pop" role="tooltip" id="sinfo-{{ t.key }}">{{ t.info }}</span>
+            </span>
+          </div>
+          <div class="series-box">
+            <canvas id="chart-{{ t.key }}" role="img" aria-label="{{ t.name }} over the range"></canvas>
+            <p class="series-empty" data-role="empty" hidden></p>
+          </div>
+        </div>
+        <dl class="sensor-stats num" aria-label="{{ t.name }} over the range">
+          <div><dt>Minimum</dt><dd data-role="min"><span class="skeleton">0.000</span></dd></div>
+          <div><dt>Mean</dt><dd data-role="mean"><span class="skeleton">0.000</span></dd></div>
+          <div><dt>Maximum</dt><dd data-role="max"><span class="skeleton">0.000</span></dd></div>
+        </dl>
+      </section>
+    {% endfor %}
+  </div>
+
+  {{ config|json_script:"page-config" }}
+{% endblock %}
+
+{% block scripts %}
+  {% load versioned_static %}
+  <script src="{% vstatic 'dashboard/vendor/chartjs-4.4.0/chart.umd.js' %}"></script>
+  <script type="module">import 'ms/sensors.js';</script>
+{% endblock %}

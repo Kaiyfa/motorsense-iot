@@ -88,6 +88,12 @@ function rememberPosition() {
   url.searchParams.set('session', config.session);
   url.searchParams.set('pos', String(index));
   window.history.replaceState(null, '', url.toString());
+  // tabs that show replayed data open at the same playhead
+  document.querySelectorAll('.tabs a[data-mode-tab]').forEach((a) => {
+    const target = new URL(a.href);
+    target.searchParams.set('pos', String(index));
+    a.href = target.toString();
+  });
 }
 
 // ---------------------------------------------------------------- data
@@ -122,6 +128,7 @@ async function load() {
     showError(null);
     const start = Number.isInteger(config.pos) ? Math.min(Math.max(config.pos, 0), rows.length - 1) : 0;
     go(start);
+    rememberPosition();
   } catch (err) {
     showError(`Could not load the recorded session: ${err.message}.`);
     view.clearSkeletons();
@@ -201,7 +208,7 @@ function go(i) {
 
   scrubber.value = String(i);
   scrubber.setAttribute('aria-valuetext', `${fmt.clock(r.t)}, ${state.label}`);
-  $('scrub-time').textContent = `${fmt.clock(r.t)} (${fmt.timezoneLabel()})`;
+  $('scrub-time').textContent = fmt.clock(r.t);
   $('scrub-pos').textContent = `Second ${i + 1} of ${rows.length}`;
 }
 

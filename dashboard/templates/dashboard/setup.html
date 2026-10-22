@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Setup · MotorSense IoT{% endblock %}
+
+{% block content %}
+  <h1 class="page-title">Setup</h1>
+
+  <div class="two-col">
+    <section class="card" aria-labelledby="rig-title">
+      <h2 id="rig-title">The testbed</h2>
+      <p>EQ-001 is an Elegoo robot car with four DC motors, wheels removed, running at a fixed speed on a bench. A Raspberry Pi reads the sensors, reduces 200 Hz samples to one row per second and posts each row to this application.</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th scope="col">Sensor</th><th scope="col">Where</th><th scope="col">Measures</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Sensor">MPU&#8209;6050</td><td data-label="Where">On a breadboard resting on the chassis</td><td data-label="Measures">Acceleration; per second the vibration RMS and peak (g) of the 200 Hz samples</td></tr>
+            <tr><td data-label="Sensor">INA219</td><td data-label="Where">In series with the battery pack</td><td data-label="Measures">Current (A, not calibrated against a reference meter) and pack voltage (V)</td></tr>
+            <tr><td data-label="Sensor">DS18B20</td><td data-label="Where" class="muted">Not documented</td><td data-label="Measures">Temperature (°C)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <figure class="card photo-slot" aria-labelledby="photo-caption">
+      <div class="photo-placeholder">
+        <span>Photo of the testbed</span>
+        <span class="cell-note mono">{{ photo_path }}</span>
+      </div>
+      <figcaption id="photo-caption" class="card-note">Reserved for the testbed photo. The file exists locally but is not in the repository, so it is not shown here.</figcaption>
+    </figure>
+  </div>
+
+  <section class="card" aria-labelledby="pipeline-title">
+    <h2 id="pipeline-title">Pipeline</h2>
+    <p class="card-sub">One reading per second travels from the Pi to the dashboard. The scorer is a separate process; the web server never runs the model.</p>
+    <svg class="pipeline pipeline-wide" viewBox="0 0 760 250" role="img" aria-labelledby="pipeline-desc">
+      <desc id="pipeline-desc">The Raspberry Pi posts readings over HTTP with a bearer token to the ingest endpoint, which stores them in TimescaleDB. The scorer reads new readings from TimescaleDB and writes scores and alerts back. The dashboard reads readings, scores and alerts from TimescaleDB.</desc>
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pipe-arrowhead"/></marker></defs>
+      <g class="pipe-box"><rect x="10" y="20" width="160" height="78" rx="10"/><text x="90" y="52">Raspberry Pi</text><text x="90" y="74" class="pipe-sub">logger, 1 row per second</text></g>
+      <g class="pipe-box"><rect x="205" y="20" width="160" height="78" rx="10"/><text x="285" y="45">HTTP ingest</text><text x="285" y="67" class="pipe-sub">POST /api/ingest/</text><text x="285" y="85" class="pipe-sub">bearer token, no TLS</text></g>
+      <g class="pipe-box"><rect x="400" y="20" width="160" height="78" rx="10"/><text x="480" y="52">TimescaleDB</text><text x="480" y="74" class="pipe-sub">readings, scores, alerts</text></g>
+      <g class="pipe-box"><rect x="595" y="20" width="155" height="78" rx="10"/><text x="672" y="52">Dashboard</text><text x="672" y="74" class="pipe-sub">Django, reads only</text></g>
+      <g class="pipe-box"><rect x="400" y="160" width="160" height="78" rx="10"/><text x="480" y="192">Scorer</text><text x="480" y="214" class="pipe-sub">score_live, autoencoder</text></g>
+      <line x1="170" y1="59" x2="203" y2="59" class="pipe-line" marker-end="url(#arrow)"/>
+      <line x1="365" y1="59" x2="398" y2="59" class="pipe-line" marker-end="url(#arrow)"/>
+      <line x1="560" y1="59" x2="593" y2="59" class="pipe-line" marker-end="url(#arrow)"/>
+      <line x1="455" y1="98" x2="455" y2="158" class="pipe-line" marker-end="url(#arrow)"/>
+      <line x1="505" y1="160" x2="505" y2="100" class="pipe-line" marker-end="url(#arrow)"/>
+      <text x="448" y="132" class="pipe-sub" text-anchor="end">new readings</text>
+      <text x="512" y="132" class="pipe-sub" text-anchor="start">scores, alerts</text>
+    </svg>
+    <svg class="pipeline pipeline-narrow" viewBox="0 0 320 560" role="img" aria-labelledby="pipeline-desc-narrow">
+      <defs><marker id="arrow-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pipe-arrowhead"/></marker></defs>
+      <desc id="pipeline-desc-narrow">The same pipeline from top to bottom: Raspberry Pi, HTTP ingest with a bearer token, TimescaleDB, the scorer that reads readings and writes scores back, and the dashboard that reads from TimescaleDB.</desc>
+      <g class="pipe-box"><rect x="20" y="10" width="200" height="70" rx="10"/><text x="120" y="40">Raspberry Pi</text><text x="120" y="62" class="pipe-sub">1 row per second</text></g>
+      <g class="pipe-box"><rect x="20" y="120" width="200" height="78" rx="10"/><text x="120" y="146">HTTP ingest</text><text x="120" y="167" class="pipe-sub">POST /api/ingest/</text><text x="120" y="186" class="pipe-sub">bearer token, no TLS</text></g>
+      <g class="pipe-box"><rect x="20" y="238" width="200" height="70" rx="10"/><text x="120" y="268">TimescaleDB</text><text x="120" y="290" class="pipe-sub">readings, scores, alerts</text></g>
+      <g class="pipe-box"><rect x="20" y="360" width="200" height="70" rx="10"/><text x="120" y="390">Scorer</text><text x="120" y="412" class="pipe-sub">score_live, autoencoder</text></g>
+      <g class="pipe-box"><rect x="20" y="480" width="200" height="70" rx="10"/><text x="120" y="510">Dashboard</text><text x="120" y="532" class="pipe-sub">Django, reads only</text></g>
+      <line x1="120" y1="80" x2="120" y2="118" class="pipe-line" marker-end="url(#arrow-n)"/>
+      <line x1="120" y1="198" x2="120" y2="236" class="pipe-line" marker-end="url(#arrow-n)"/>
+      <line x1="95" y1="308" x2="95" y2="358" class="pipe-line" marker-end="url(#arrow-n)"/>
+      <line x1="145" y1="360" x2="145" y2="310" class="pipe-line" marker-end="url(#arrow-n)"/>
+      <path d="M220,273 H280 V515 H222" class="pipe-line" fill="none" marker-end="url(#arrow-n)"/>
+      <text x="286" y="400" class="pipe-sub" text-anchor="start" transform="rotate(90 286 400)">reads</text>
+    </svg>
+  </section>
+
+  <div class="two-col">
+    <section class="card" aria-labelledby="inputs-title">
+      <h2 id="inputs-title">Model inputs</h2>
+      <p>The autoencoder sees three values per second: vibration RMS, vibration peak and current, as sequences of {{ sequence_length }} seconds.</p>
+      <table class="data-table">
+        <thead><tr><th scope="col">Recorded but not an input</th><th scope="col">Why</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Signal">Pack voltage</td><td data-label="Why">The pack state differs between sessions by up to 0.15 V, independent of any fault</td></tr>
+          <tr><td data-label="Signal">Temperature</td><td data-label="Why">It rises 3 to 5 °C per session without reaching a plateau</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" aria-labelledby="rules-title">
+      <h2 id="rules-title">States, alerts and data</h2>
+      <dl class="rule-list">
+        <div><dt>Idle</dt><dd>Current at or below {{ idle_current }} A. Not scored.</dd></div>
+        <div><dt>Warming up</dt><dd>The first {{ warmup_seconds }} s after the current first exceeds {{ idle_current }} A. Not scored: the model was trained only on data after the warm-up, while vibration is still low and rising during it.</dd></div>
+        <div><dt>Running</dt><dd>Afterwards. Scored once {{ sequence_length }} consecutive running seconds are buffered. A gap of more than {{ max_gap }} s between readings restarts the state machine; Offline means no reading for more than {{ offline_after }} s.</dd></div>
+        <div><dt>Alert</dt><dd>Fires on the {{ alert_seconds }}th consecutive second with a score above the threshold (the {{ percentile }}th percentile of scores on the validation session) and stays active while the score stays above it.</dd></div>
+        <div><dt>Data retention</dt><dd>Raw readings older than {{ retention_days }} days are dropped by the TimescaleDB retention policy that <code>manage.py setup_timescaledb</code> adds. Scores, alerts and maintenance entries are not pruned.</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="limits-title">
+    <h2 id="limits-title">Known limitations</h2>
+    <ul class="limits">
+      <li>Readings travel over plain HTTP without TLS on a home network; the bearer token is sent in clear text.</li>
+      <li>Current is not calibrated against a reference meter; read it as a relative value.</li>
+      <li>Baseline vibration drifts after mechanical handling of the rig (see Negative findings on the Evaluation tab).</li>
+      <li>One fault type was tested: one motor lead disconnected.</li>
+      <li>Small test set: one normal and three fault sessions on one rig, not independent trials.</li>
+    </ul>
+  </section>
+{% endblock %}

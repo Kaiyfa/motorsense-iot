@@ -27,10 +27,13 @@ register = template.Library()
 # bare module specifier -> static path
 JS_MODULES = {
     'ms/format.js': 'dashboard/js/format.js',
+    'ms/net.js': 'dashboard/js/net.js',
     'ms/charts.js': 'dashboard/js/charts.js',
     'ms/overview.js': 'dashboard/js/overview.js',
     'ms/live.js': 'dashboard/js/live.js',
     'ms/replay.js': 'dashboard/js/replay.js',
+    'ms/sensors.js': 'dashboard/js/sensors.js',
+    'ms/alerts.js': 'dashboard/js/alerts.js',
 }
 
 _cache = {}  # absolute path -> (mtime_ns, size, version)
