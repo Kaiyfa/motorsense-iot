@@ -407,6 +407,16 @@ class AnomalyApiTests(TestCase):
         self.assertEqual(status['consecutive_seconds_above_threshold'], 4)
         self.assertIsNone(status['warmup_elapsed_seconds'])
 
+    def test_live_status_state_restarts_after_a_gap(self):
+        # warming up, a 12 s gap (the scorer resets), then warming up again
+        times = [T0 + timedelta(seconds=i) for i in range(5)] + [T0 + timedelta(seconds=16 + i) for i in range(4)]
+        for t in times:
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=t, run_label='x', threshold=1.0,
+                                        machine_state='warming_up', mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['state_since'], (T0 + timedelta(seconds=16)).isoformat())
+        self.assertEqual(status['warmup_elapsed_seconds'], 3.0)
+
     def test_replay_readings(self):
         data = self.get('replay_readings', label='r9_fault').json()
         self.assertEqual(set(data), {'label', 'mode', 'count', 'data'})

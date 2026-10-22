@@ -21,6 +21,7 @@ import logging
 import json
 import math
 from django.utils import timezone 
+from django.db import connection
 
 logger = logging.getLogger(__name__)
 
@@ -78,17 +79,18 @@ MODEL_FEATURES = [
 ]
 
 SENSOR_TILES = [
-    {'key': 'vibration_rms', 'name': 'Vibration RMS', 'unit': 'g', 'digits': 3,
+    # min_span: smallest vertical range of the sparkline, so sensor noise is not blown up to full height
+    {'key': 'vibration_rms', 'name': 'Vibration RMS', 'unit': 'g', 'digits': 3, 'min_span': 0.02,
      'info': 'Model input. MPU-6050 on a breadboard resting on the chassis; RMS of one second of 200 Hz samples.'},
-    {'key': 'vibration_peak', 'name': 'Vibration peak', 'unit': 'g', 'digits': 3,
+    {'key': 'vibration_peak', 'name': 'Vibration peak', 'unit': 'g', 'digits': 3, 'min_span': 0.05,
      'info': 'Model input. Largest absolute value in one second of 200 Hz samples from the MPU-6050.'},
-    {'key': 'current', 'name': 'Current', 'unit': 'A', 'digits': 3,
+    {'key': 'current', 'name': 'Current', 'unit': 'A', 'digits': 3, 'min_span': 0.05,
      'info': 'Model input. INA219 in series with the battery pack. Not calibrated against a reference meter, '
              'so read it as a relative value.'},
-    {'key': 'bus_voltage', 'name': 'Pack voltage', 'unit': 'V', 'digits': 2,
+    {'key': 'bus_voltage', 'name': 'Pack voltage', 'unit': 'V', 'digits': 2, 'min_span': 0.2,
      'info': 'Displayed only, not a model input: the pack state differs between sessions by up to 0.15 V, '
              'independent of any fault.'},
-    {'key': 'temperature', 'name': 'Temperature', 'unit': '°C', 'digits': 1,
+    {'key': 'temperature', 'name': 'Temperature', 'unit': '°C', 'digits': 1, 'min_span': 1.0,
      'info': 'Displayed only, not a model input: it rises 3 to 5 °C per session without reaching a plateau.'},
 ]
 
@@ -141,7 +143,7 @@ def _overview_context(request, mode, replay_label=None, extra_config=None):
         'baseline': scaler,
         'featureDigits': {key: digits for key, _, _, digits in MODEL_FEATURES},
         'featureUnits': {key: unit for key, _, unit, _ in MODEL_FEATURES},
-        'tiles': [{'key': t['key'], 'digits': t['digits']} for t in SENSOR_TILES],
+        'tiles': [{'key': t['key'], 'digits': t['digits'], 'minSpan': t['min_span']} for t in SENSOR_TILES],
         'urls': {
             'status': reverse('dashboard:live_status'),
             'scores': reverse('dashboard:live_scores'),
@@ -452,6 +454,7 @@ def live_sensor_history(request):
 # Live endpoints return mode "live" rows only, so a replay is never shown as live.
 
 SCORER_ALIVE_SECONDS = 10
+STATE_LOOKBACK = timedelta(hours=24)
 LIVE_SCORES_MAX_MINUTES = 24 * 60
 
 
@@ -522,8 +525,30 @@ def _state_details(latest):
     rows = AnomalyScore.objects.filter(mode='live', equipment_id=latest.equipment_id)
     boundary = (rows.filter(timestamp__lt=latest.timestamp).exclude(machine_state=latest.machine_state)
                 .order_by('-timestamp').values_list('timestamp', flat=True).first())
+    # A gap of more than MAX_GAP_SECONDS resets the scorer's state machine, so it also
+    # starts a new state run here (looking back at most STATE_LOOKBACK).
+    lower = latest.timestamp - STATE_LOOKBACK
+    if boundary is None or boundary < lower:
+        boundary_or_lower = lower
+    else:
+        boundary_or_lower = boundary
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''
+            SELECT max(timestamp) FROM (
+                SELECT timestamp, timestamp - lag(timestamp) OVER (ORDER BY timestamp) AS gap
+                FROM anomaly_scores
+                WHERE mode = 'live' AND equipment_id = %s AND timestamp > %s AND timestamp <= %s
+            ) runs
+            WHERE gap > %s
+            ''',
+            [latest.equipment_id, boundary_or_lower, latest.timestamp, timedelta(seconds=MAX_GAP_SECONDS)],
+        )
+        after_gap = cursor.fetchone()[0]
     in_state = rows.filter(timestamp__lte=latest.timestamp)
-    if boundary is not None:
+    if after_gap is not None:
+        in_state = in_state.filter(timestamp__gte=after_gap)
+    elif boundary is not None:
         in_state = in_state.filter(timestamp__gt=boundary)
     since = in_state.order_by('timestamp').values_list('timestamp', flat=True).first()
 
