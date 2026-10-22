@@ -30,8 +30,13 @@ class Command(BaseCommand):
 
         runner = scoring_service.LiveRunner(equipment_id, detector)
         primed = runner.prime()
-        self.stdout.write(f'Scoring {equipment_id} (threshold {detector.threshold:.4f}); '
-                          f'resumed after {runner.last_timestamp or "nothing"} using {primed} earlier rows')
+        if runner.last_timestamp is not None:
+            start = f'resuming after {runner.last_timestamp} ({primed} earlier rows used to rebuild state)'
+        elif runner.start_at is not None:
+            start = f'first start: beginning at the newest reading {runner.start_at}, older readings ignored'
+        else:
+            start = 'first start: no readings yet'
+        self.stdout.write(f'Scoring {equipment_id} (threshold {detector.threshold:.4f}); {start}')
         try:
             while True:
                 processed = runner.poll()

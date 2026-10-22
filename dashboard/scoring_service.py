@@ -153,6 +153,7 @@ class LiveRunner:
         self.scorer = new_scorer(detector)
         self.writer = Writer(equipment_id, LIVE)
         self.last_timestamp = None
+        self.start_at = None  # first start only: score from this reading on
 
     def _rows(self):
         return SensorData.objects.filter(equipment_id=self.equipment_id, source=LIVE_SOURCE)
@@ -167,6 +168,9 @@ class LiveRunner:
         last = (AnomalyScore.objects.filter(mode=LIVE, equipment_id=self.equipment_id)
                 .order_by('-timestamp').first())
         if last is None:
+            # First start: begin at the newest reading and ignore everything older,
+            # so stored recordings are never scored as live.
+            self.start_at = self._rows().order_by('-timestamp').values_list('timestamp', flat=True).first()
             return 0
         self.last_timestamp = last.timestamp
 
@@ -199,6 +203,8 @@ class LiveRunner:
         rows = self._rows()
         if self.last_timestamp is not None:
             rows = rows.filter(timestamp__gt=self.last_timestamp)
+        elif self.start_at is not None:
+            rows = rows.filter(timestamp__gte=self.start_at)
         rows = list(rows.order_by('timestamp').values_list(*READING_FIELDS)[:POLL_BATCH])
 
         results = [self.scorer.process(to_reading(values)) for values in rows]

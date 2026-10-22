@@ -256,13 +256,36 @@ class LiveRunnerTests(TestCase):
         self.eq = Equipment.objects.create(equipment_id='EQ-001', name='Motor testbed', equipment_type='MOTOR',
                                            location='Test bench', installation_date=T0.date())
 
-    def test_poll_scores_new_rows_once_and_resumes_after_restart(self):
-        end = add_session(self.eq, 'live_run', 0, main_vib=[QUIET] * 40 + [LOUD] * 60)
+    def test_first_start_begins_at_newest_reading(self):
+        end = add_session(self.eq, 'old_recording', 0, main_vib=[LOUD] * 100)
         runner = scoring_service.LiveRunner('EQ-001', FAKE_DETECTOR)
         self.assertEqual(runner.prime(), 0)
+        self.assertEqual(runner.start_at, T0 + timedelta(seconds=end - 1))
+        self.assertEqual(runner.poll(), 1)                            # only the newest reading
+        self.assertEqual(list(AnomalyScore.objects.values_list('timestamp', flat=True)),
+                         [T0 + timedelta(seconds=end - 1)])
+        self.assertFalse(AlertEpisode.objects.exists())
+        SensorData.objects.create(equipment=self.eq, timestamp=T0 + timedelta(seconds=end), run_label='new',
+                                  temperature=25, current=1.0, vibration_rms=QUIET, vibration_peak=0.0, source='pi')
+        self.assertEqual(runner.poll(), 1)
+        self.assertEqual(AnomalyScore.objects.filter(mode='live').count(), 2)
+
+    def test_first_start_without_readings(self):
+        runner = scoring_service.LiveRunner('EQ-001', FAKE_DETECTOR)
+        self.assertEqual(runner.prime(), 0)
+        self.assertIsNone(runner.start_at)
+        self.assertEqual(runner.poll(), 0)
+
+    def test_poll_scores_new_rows_once_and_resumes_after_restart(self):
+        # an existing live score marks where scoring resumes (here: before the first reading)
+        AnomalyScore.objects.create(equipment=self.eq, timestamp=T0 - timedelta(seconds=1), threshold=1.0,
+                                    machine_state='idle', mode='live')
+        end = add_session(self.eq, 'live_run', 0, main_vib=[QUIET] * 40 + [LOUD] * 60)
+        runner = scoring_service.LiveRunner('EQ-001', FAKE_DETECTOR)
+        runner.prime()
         self.assertEqual(runner.poll(), WARMUP + 100)
         self.assertEqual(runner.poll(), 0)
-        self.assertEqual(AnomalyScore.objects.filter(mode='live').count(), WARMUP + 100)
+        self.assertEqual(AnomalyScore.objects.filter(mode='live').count(), WARMUP + 101)
         open_episodes = AlertEpisode.objects.filter(mode='live', ended_at__isnull=True)
         self.assertEqual(open_episodes.count(), 1)
 
@@ -276,7 +299,7 @@ class LiveRunnerTests(TestCase):
         self.assertGreater(restarted.prime(), 0)
         self.assertTrue(restarted.scorer.rule.active)
         self.assertEqual(restarted.poll(), 40)
-        self.assertEqual(AnomalyScore.objects.filter(mode='live').count(), WARMUP + 140)
+        self.assertEqual(AnomalyScore.objects.filter(mode='live').count(), WARMUP + 141)
         self.assertEqual(AlertEpisode.objects.filter(mode='live').count(), 1)
         self.assertIsNotNone(AlertEpisode.objects.get(mode='live').ended_at)
 
