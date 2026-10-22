@@ -279,3 +279,78 @@ class PredictionHistory(models.Model):
     
     def __str__(self):
         return f"{self.equipment.equipment_id} - RUL: {self.rul} - {self.timestamp}"
+
+class AnomalyScore(models.Model):
+    """
+    One scored (or deliberately unscored) second from the live scorer or a replay.
+    Written only by the score_live and replay_session commands.
+    """
+    MODE_CHOICES = [
+        ('live', 'Live'),
+        ('replay', 'Replay of a recorded session'),
+    ]
+    MACHINE_STATE_CHOICES = [
+        ('idle', 'Idle'),
+        ('warming_up', 'Warming up'),
+        ('running', 'Running'),
+    ]
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='anomaly_scores')
+    timestamp = models.DateTimeField(help_text="Timestamp of the sensor reading that was scored")
+    run_label = models.CharField(max_length=64, blank=True)
+    score = models.FloatField(null=True, blank=True, help_text="Reconstruction error; empty when not scored")
+    threshold = models.FloatField()
+    above_threshold = models.BooleanField(null=True, blank=True, help_text="Empty when not scored")
+    alert_active = models.BooleanField(default=False)
+    machine_state = models.CharField(max_length=16, choices=MACHINE_STATE_CHOICES)
+    mode = models.CharField(max_length=8, choices=MODE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'anomaly_scores'
+        ordering = ['-timestamp']
+        constraints = [
+            models.UniqueConstraint(fields=['equipment', 'timestamp', 'mode'], name='uniq_anomaly_score_second'),
+        ]
+        indexes = [
+            models.Index(fields=['mode', 'equipment', '-timestamp']),
+            models.Index(fields=['mode', 'run_label']),
+        ]
+
+    def __str__(self):
+        return f"{self.mode} {self.equipment_id} {self.timestamp} {self.machine_state} {self.score}"
+
+
+class AlertEpisode(models.Model):
+    """An alert from firing (10 s above threshold) until the first second not above it."""
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='alert_episodes')
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True, help_text="Empty while the alert is active")
+    peak_score = models.FloatField()
+    run_label = models.CharField(max_length=64, blank=True)
+    mode = models.CharField(max_length=8, choices=AnomalyScore.MODE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'alert_episodes'
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['mode', 'equipment', '-started_at']),
+            models.Index(fields=['mode', 'run_label']),
+        ]
+
+    def __str__(self):
+        return f"{self.mode} {self.equipment_id} {self.started_at} - {self.ended_at or 'active'}"
+
+
+class ScorerHeartbeat(models.Model):
+    """Last poll of the live scorer per equipment, so the API can tell whether it is running."""
+    equipment = models.OneToOneField(Equipment, on_delete=models.CASCADE, related_name='scorer_heartbeat')
+    last_poll_at = models.DateTimeField()
+    last_scored_reading_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'scorer_heartbeats'
+
+    def __str__(self):
+        return f"{self.equipment_id} polled {self.last_poll_at}"
