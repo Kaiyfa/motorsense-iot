@@ -50,8 +50,9 @@
       <form method="post" action="{% url 'dashboard:maintenance_add' %}" class="stack-form">
         {% csrf_token %}
         <div class="field">
-          <label for="id_performed_at">{{ entry_form.performed_at.label }} <span class="faint">(as {{ input_example }}; seconds optional)</span></label>
+          <label for="id_performed_at">{{ entry_form.performed_at.label }}</label>
           {{ entry_form.performed_at }}
+          <span class="cell-note" id="performed-at-hint">As {{ input_example }}; seconds optional.</span>
         </div>
         <div class="field">
           <label for="id_kind">{{ entry_form.kind.label }}</label>

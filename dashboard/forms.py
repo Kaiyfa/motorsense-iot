@@ -17,7 +17,8 @@ class MaintenanceEntryForm(forms.ModelForm):
         # A text field: a browser's datetime picker would show its own locale's format.
         # ISO forms are still accepted.
         input_formats=formats.DATETIME_PARSE_FORMATS + ['%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M'],
-        widget=forms.TextInput(attrs={'autocomplete': 'off', 'spellcheck': 'false'}),
+        widget=forms.TextInput(attrs={'autocomplete': 'off', 'spellcheck': 'false',
+                                      'aria-describedby': 'performed-at-hint'}),
     )
 
     class Meta:

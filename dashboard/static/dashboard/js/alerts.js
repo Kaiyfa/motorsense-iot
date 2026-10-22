@@ -121,7 +121,7 @@ async function toggleRow(row, forceOpen = false) {
 // One deviation panel: the "What changed" bars for one 60 s window.
 function deviationPanel(title, devs, scale, seconds) {
   const n = Math.max(0, ...devs.map((d) => d.n));
-  const coverage = n < seconds ? `<p class="card-note">${n} of ${seconds} seconds have readings.</p>` : '';
+  const coverage = n < seconds ? `<p class="card-note">${n} readings in these ${seconds}${nb}s (one per second expected).</p>` : '';
   return `<div>
     <h3 class="detail-title">${esc(title)}</h3>
     <div class="changes">${devs.map((d) => {
