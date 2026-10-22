@@ -314,7 +314,8 @@ export function createOverview() {
     if (activeIndex >= stripState.segments.length) hideTip();
     fill.hidden = hasData;
     if (!hasData) $('chart-fill-text').textContent = model.emptyMessage;
-    chart.update({ ...model, narrow: narrow.matches });
+    // With nothing scored, the threshold line would only collide with the explanation in the plot area.
+    chart.update({ ...model, threshold: hasData ? model.threshold : null, narrow: narrow.matches });
     placeStrip();
     $('score-chart').setAttribute('aria-label', model.summary);
     setText($('chart-summary'), model.summary);
