@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/live/scores/', views.live_scores, name='live_scores'),
     path('api/alerts/', views.alerts, name='alerts'),
     path('api/replay/<str:label>/', views.replay_detail, name='replay_detail'),
+    path('api/replay/<str:label>/readings/', views.replay_readings, name='replay_readings'),
 ]

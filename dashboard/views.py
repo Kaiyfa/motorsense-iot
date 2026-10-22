@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 from .models import AlertEpisode, AnomalyScore, Equipment, ScorerHeartbeat, SensorData
+from dashboard.ml.constants import ALERT_SECONDS, SEQUENCE_LENGTH
 from datetime import datetime, timedelta, timezone as dt_timezone
 import hmac
 import logging
@@ -627,6 +628,7 @@ def live_sensor_history(request):
         'timestamps': [],
         'temperature': [],
         'vibration_rms': [],
+        'vibration_peak': [],
         'current': [],
         'bus_voltage': [],
     }
@@ -634,6 +636,7 @@ def live_sensor_history(request):
         data['timestamps'].append(reading.timestamp.isoformat())
         data['temperature'].append(reading.temperature)
         data['vibration_rms'].append(reading.vibration_rms)
+        data['vibration_peak'].append(reading.vibration_peak)
         data['current'].append(reading.current)
         data['bus_voltage'].append(reading.bus_voltage)
 
@@ -696,6 +699,7 @@ def live_status(request):
                     .order_by('-timestamp').values_list('timestamp', flat=True).first())
     heartbeat = ScorerHeartbeat.objects.filter(equipment_id=equipment_id).first()
     heartbeat_age = (now - heartbeat.last_poll_at).total_seconds() if heartbeat else None
+    state = _state_details(latest) if latest else {}
 
     return JsonResponse({
         'equipment_id': equipment_id,
@@ -708,7 +712,34 @@ def live_status(request):
         'seconds_since_last_reading': round((now - last_reading).total_seconds(), 1) if last_reading else None,
         'scorer_alive': heartbeat_age is not None and heartbeat_age <= SCORER_ALIVE_SECONDS,
         'scorer_last_poll_seconds_ago': round(heartbeat_age, 1) if heartbeat_age is not None else None,
+        'state_since': _iso(state.get('since')),
+        'seconds_in_state': round((now - state['since']).total_seconds(), 1) if state else None,
+        'warmup_elapsed_seconds': state.get('warmup_elapsed_seconds'),
+        'consecutive_seconds_above_threshold': state.get('consecutive_above'),
+        'scoring_starts_in_seconds': state.get('scoring_starts_in'),
     })
+
+
+def _state_details(latest):
+    """When the latest live machine state began, plus warm-up, buffer and run-length details."""
+    rows = AnomalyScore.objects.filter(mode='live', equipment_id=latest.equipment_id)
+    boundary = (rows.filter(timestamp__lt=latest.timestamp).exclude(machine_state=latest.machine_state)
+                .order_by('-timestamp').values_list('timestamp', flat=True).first())
+    in_state = rows.filter(timestamp__lte=latest.timestamp)
+    if boundary is not None:
+        in_state = in_state.filter(timestamp__gt=boundary)
+    since = in_state.order_by('timestamp').values_list('timestamp', flat=True).first()
+
+    details = {'since': since}
+    if latest.machine_state == 'warming_up':
+        details['warmup_elapsed_seconds'] = round((latest.timestamp - since).total_seconds(), 1)
+    if latest.machine_state == 'running' and latest.score is None:
+        buffered = in_state.filter(score__isnull=True).count()
+        details['scoring_starts_in'] = max(0, SEQUENCE_LENGTH - buffered)
+    recent = list(rows.filter(timestamp__lte=latest.timestamp).order_by('-timestamp')
+                  .values_list('above_threshold', flat=True)[:ALERT_SECONDS])
+    details['consecutive_above'] = next((i for i, above in enumerate(recent) if not above), len(recent))
+    return details
 
 
 @login_required(login_url='login')
@@ -747,6 +778,28 @@ def alerts(request):
         rows = rows.filter(equipment_id=request.GET['equipment_id'])
     episodes = [_episode_json(r) for r in rows.order_by('-started_at')[:500]]
     return JsonResponse({'mode': mode, 'count': len(episodes), 'episodes': episodes})
+
+
+@login_required(login_url='login')
+def replay_readings(request, label):
+    """Recorded readings of a replayed session (its _warmup rows and its main rows), oldest first."""
+    labels = [f'{label}_warmup', label]
+    if not AnomalyScore.objects.filter(mode='replay', run_label__in=labels).exists():
+        return JsonResponse({'status': 'error', 'error': f'no replay stored for {label!r}'}, status=404)
+    rows = (SensorData.objects.filter(source='pi', run_label__in=labels).order_by('timestamp')
+            .values_list('timestamp', 'run_label', 'vibration_rms', 'vibration_peak', 'current',
+                         'bus_voltage', 'temperature'))
+    data = {key: [] for key in ('timestamps', 'run_label', 'vibration_rms', 'vibration_peak', 'current',
+                                'bus_voltage', 'temperature')}
+    for ts, run_label, rms, peak, current, bus_v, temp in rows:
+        data['timestamps'].append(ts.isoformat())
+        data['run_label'].append(run_label)
+        data['vibration_rms'].append(rms)
+        data['vibration_peak'].append(peak)
+        data['current'].append(current)
+        data['bus_voltage'].append(bus_v)
+        data['temperature'].append(temp)
+    return JsonResponse({'label': label, 'mode': 'replay', 'count': len(data['timestamps']), 'data': data})
 
 
 @login_required(login_url='login')

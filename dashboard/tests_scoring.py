@@ -333,7 +333,9 @@ class AnomalyApiTests(TestCase):
         status = self.get('live_status').json()
         self.assertEqual(set(status), {
             'equipment_id', 'mode', 'machine_state', 'latest_score', 'latest_score_timestamp', 'threshold',
-            'alert_active', 'seconds_since_last_reading', 'scorer_alive', 'scorer_last_poll_seconds_ago'})
+            'alert_active', 'seconds_since_last_reading', 'scorer_alive', 'scorer_last_poll_seconds_ago',
+            'state_since', 'seconds_in_state', 'warmup_elapsed_seconds', 'consecutive_seconds_above_threshold',
+            'scoring_starts_in_seconds'})
         self.assertEqual(status['mode'], 'live')
         self.assertIsNone(status['machine_state'])
         self.assertIsNone(status['latest_score'])
@@ -380,10 +382,43 @@ class AnomalyApiTests(TestCase):
         self.assertEqual(len(data['alerts']), 1)
         self.assertEqual(self.get('replay_detail', label='nope').status_code, 404)
 
+    def test_live_status_state_details(self):
+        rows = [('idle', None, None, False)] * 3 + [('warming_up', None, None, False)] * 5
+        for i, (state, score, above, alert) in enumerate(rows):
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=T0 + timedelta(seconds=i), run_label='x',
+                                        score=score, threshold=1.0, above_threshold=above, alert_active=alert,
+                                        machine_state=state, mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['machine_state'], 'warming_up')
+        self.assertEqual(status['state_since'], (T0 + timedelta(seconds=3)).isoformat())
+        self.assertEqual(status['warmup_elapsed_seconds'], 4.0)
+        self.assertIsNone(status['scoring_starts_in_seconds'])
+        self.assertEqual(status['consecutive_seconds_above_threshold'], 0)
+
+        base = T0 + timedelta(seconds=8)
+        for i in range(12):   # 12 running seconds, the last 4 scored and above
+            scored = i >= 8
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=base + timedelta(seconds=i), run_label='x',
+                                        score=2.0 if scored else None, threshold=1.0,
+                                        above_threshold=True if scored else None, alert_active=False,
+                                        machine_state='running', mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['state_since'], base.isoformat())
+        self.assertEqual(status['consecutive_seconds_above_threshold'], 4)
+        self.assertIsNone(status['warmup_elapsed_seconds'])
+
+    def test_replay_readings(self):
+        data = self.get('replay_readings', label='r9_fault').json()
+        self.assertEqual(set(data), {'label', 'mode', 'count', 'data'})
+        self.assertEqual((data['mode'], data['count']), ('replay', WARMUP + 180))
+        self.assertEqual(set(data['data']), {'timestamps', 'run_label', 'vibration_rms', 'vibration_peak',
+                                             'current', 'bus_voltage', 'temperature'})
+        self.assertEqual(self.get('replay_readings', label='nope').status_code, 404)
+
     def test_login_required(self):
         self.client.logout()
         for name, kwargs in [('live_status', {}), ('live_scores', {}), ('alerts', {}),
-                             ('replay_detail', {'label': 'r9_fault'})]:
+                             ('replay_detail', {'label': 'r9_fault'}), ('replay_readings', {'label': 'r9_fault'})]:
             self.assertEqual(self.get(name, **kwargs).status_code, 302)
 
 
