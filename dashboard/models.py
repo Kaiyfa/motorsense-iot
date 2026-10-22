@@ -359,3 +359,42 @@ class ScorerHeartbeat(models.Model):
 
     def __str__(self):
         return f"{self.equipment_id} polled {self.last_poll_at}"
+
+
+class MaintenanceEntry(models.Model):
+    """Operator log of maintenance work on the testbed. Entered by people, never generated."""
+    KIND_CHOICES = [
+        ('inspection', 'Inspection'),
+        ('repair', 'Repair'),
+        ('replacement', 'Replacement'),
+        ('other', 'Other'),
+    ]
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='maintenance_entries')
+    performed_at = models.DateTimeField()
+    performed_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='maintenance_entries')
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    notes = models.TextField(blank=True, max_length=2000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'maintenance_entries'
+        ordering = ['-performed_at']
+        indexes = [models.Index(fields=['equipment', 'kind', '-performed_at'])]
+
+    def __str__(self):
+        return f"{self.equipment_id} {self.kind} {self.performed_at}"
+
+
+class InspectionInterval(models.Model):
+    """Inspection interval in days, set by an operator per equipment. Not a prediction."""
+    equipment = models.OneToOneField(Equipment, on_delete=models.CASCADE, related_name='inspection_interval')
+    days = models.PositiveIntegerField()
+    set_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='+')
+    set_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'inspection_intervals'
+
+    def __str__(self):
+        return f"{self.equipment_id} every {self.days} days"

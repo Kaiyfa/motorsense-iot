@@ -28,3 +28,7 @@ IDLE_CURRENT_A = 0.5
 # the rig warms up. The model has therefore never seen warm-up data, so the live
 # scorer does not score it either.
 WARMUP_SECONDS = 180.0
+
+# Raw readings (sensor_data) older than this are dropped by the TimescaleDB retention
+# policy that `manage.py setup_timescaledb` adds. Scores and alerts are not pruned.
+RAW_RETENTION_DAYS = 30
