@@ -1,4 +1,5 @@
 """Every dashboard page returns 200 for a logged-in user and redirects to the login page otherwise."""
+import re
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 from django.contrib.auth.models import User
@@ -10,11 +11,11 @@ from dashboard.models import AnomalyScore, Equipment
 PAGES = [
     ('dashboard:dashboard', []),
     ('dashboard:replay', []),
-    ('dashboard:tab', ['sensors']),
-    ('dashboard:tab', ['alerts']),
-    ('dashboard:tab', ['maintenance']),
-    ('dashboard:tab', ['evaluation']),
-    ('dashboard:tab', ['setup']),
+    ('dashboard:sensors', []),
+    ('dashboard:alerts_page', []),
+    ('dashboard:maintenance', []),
+    ('dashboard:evaluation', []),
+    ('dashboard:setup', []),
 ]
 
 REMOVED_TEXT = ['86.6', '98.53', 'ccuracy', 'Powered by AI', 'RUL', 'Remaining useful', 'emaining Useful',
@@ -39,7 +40,8 @@ class PageAccessTests(TestCase):
             with self.subTest(page=name, args=args):
                 response = self.client.get(reverse(name, args=args))
                 self.assertEqual(response.status_code, 200)
-                html = response.content.decode()
+                # SVG path coordinates (for example 86.61) are not claims; leave them out of the text check
+                html = re.sub(r' d="[^"]*"', '', response.content.decode())
                 for text in REMOVED_TEXT:
                     self.assertNotIn(text, html)
                 self.assertIn('EQ-001 · Bench rig, 4 DC motors', html)
@@ -53,7 +55,7 @@ class PageAccessTests(TestCase):
 
     def test_unknown_section_is_404(self):
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get(reverse('dashboard:tab', args=['nope'])).status_code, 404)
+        self.assertEqual(self.client.get('/nope/').status_code, 404)
 
     def test_removed_simulated_endpoints_are_gone(self):
         self.client.force_login(self.user)
@@ -103,11 +105,16 @@ class ModeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('../../etc', response.content.decode())
 
-    def test_placeholders_keep_replay_mode(self):
-        html = self.client.get(reverse('dashboard:tab', args=['alerts']) +
-                               '?mode=replay&session=r5_fault_open_02').content.decode()
-        self.assertIn('Not live data', html)
-        self.assertIn('Coming in part 2.', html)
+    def test_data_tabs_keep_replay_mode(self):
+        for name in ('dashboard:sensors', 'dashboard:alerts_page'):
+            html = self.client.get(reverse(name) + '?mode=replay&session=r5_fault_open_02').content.decode()
+            self.assertIn('REPLAY of recorded session <span class="mono">r5_fault_open_02</span>. Not live data.', html)
+
+    def test_other_tabs_are_neither_live_nor_replay(self):
+        for name in ('dashboard:maintenance', 'dashboard:evaluation', 'dashboard:setup'):
+            html = self.client.get(reverse(name) + '?mode=replay&session=r5_fault_open_02').content.decode()
+            self.assertIn('data-mode="none"', html)
+            self.assertNotIn('Not live data', html)
 
 
 class UnitTextTests(TestCase):
