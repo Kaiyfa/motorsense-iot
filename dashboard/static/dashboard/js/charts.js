@@ -250,3 +250,79 @@ export function sparkPath(series, xMin, xMax, minSpan = 0) {
   }
   return d;
 }
+
+// Trend chart for one sensor: linear axis, the stored values (reduced for drawing),
+// with an optional playhead.
+export function createSeriesChart(canvas, { unit, digits }) {
+  let colours = palette();
+  let tickStep = 60000;
+  let maxTicks = 6;
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: { datasets: [{ data: [], parsing: false, normalized: true, spanGaps: false,
+      borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, tension: 0 }] },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: { maxRotation: 0, callback: (v) => (tickStep < 60000 ? fmt.clock(v) : fmt.shortClock(v)) },
+          afterBuildTicks: (axis) => {
+            const { step, values } = timeTicks(axis.min, axis.max, maxTicks);
+            tickStep = step;
+            axis.ticks = values.map((value) => ({ value }));
+          },
+          grid: { display: false },
+        },
+        y: { ticks: { maxTicksLimit: 5, callback: (v) => fmt.fixed(v, digits) }, title: { display: true, text: unit } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => (items.length ? fmt.clock(items[0].parsed.x) : ''),
+            label: (item) => `${fmt.fixed(item.parsed.y, digits)}${fmt.NBSP}${unit}`,
+          },
+        },
+        msOverlay: {},
+      },
+    },
+    plugins: [overlayPlugin],
+  });
+
+  function applyColours() {
+    const o = chart.options;
+    chart.data.datasets[0].borderColor = colours.muted;
+    for (const axis of [o.scales.x, o.scales.y]) {
+      axis.ticks.color = colours.muted;
+      axis.border = { color: colours.grid };
+    }
+    o.scales.y.grid = { color: colours.grid };
+    o.scales.y.title.color = colours.muted;
+    Object.assign(o.plugins.msOverlay, { alert: colours.alert, replay: colours.replay, surface: colours.surface });
+    Object.assign(o.plugins.tooltip, {
+      backgroundColor: colours.surface, titleColor: colours.text, bodyColor: colours.text,
+      borderColor: colours.grid, borderWidth: 1,
+    });
+  }
+  applyColours();
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    colours = palette();
+    applyColours();
+    chart.update('none');
+  });
+
+  return {
+    update({ points, xMin, xMax, playhead, narrow }) {
+      chart.data.datasets[0].data = points;
+      chart.options.scales.x.min = xMin;
+      chart.options.scales.x.max = xMax;
+      maxTicks = narrow ? 3 : 6;
+      chart.options.plugins.msOverlay.playhead = Number.isFinite(playhead) ? playhead : NaN;
+      chart.update('none');
+    },
+  };
+}

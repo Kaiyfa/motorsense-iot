@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Evaluation · MotorSense IoT{% endblock %}
+
+{% block content %}
+  <aside class="caveat" role="note" aria-label="Scope of the evaluation">Test set: one normal session and three fault sessions, one fault type (one motor disconnected), one bench rig. Not independent trials. No claim beyond this setup.</aside>
+
+  <h1 class="page-title">Evaluation</h1>
+
+  {% if not metrics_available %}
+    <p class="notice">results/metrics.json was not found. Run <code>python -m dashboard.ml.run_evaluation</code> to produce it.</p>
+  {% else %}
+  <section class="card" aria-labelledby="methods-title">
+    <div class="card-head">
+      <div>
+        <h2 id="methods-title">Detectors on the test sessions</h2>
+        <p class="card-sub">From results/metrics.json ({{ created_at|slice:":19" }} UTC). Per-second columns count the {{ test_seconds }} scored seconds of each test session; per-session columns treat a session as detected when at least one alert fired. Autoencoder rows: mean over seeds {{ seeds|first }} to {{ seeds|last }}, with ± sample standard deviation and min–max.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table metrics-table">
+        <thead>
+          <tr><th scope="col">Detector</th><th scope="col">Inputs</th>
+            {% for c in columns %}<th scope="col" class="num-col">{{ c }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <th scope="row">{{ r.name }}{% if r.seeded %}<span class="cell-note">{{ r.seeds }} seeds</span>{% else %}<span class="cell-note">no learning, deterministic</span>{% endif %}</th>
+              <td class="mono">{{ r.inputs }}</td>
+              {% for cell in r.cells %}
+                <td class="num num-col">{{ cell.value }}{% if cell.spread %}<span class="cell-note">{{ cell.spread }}</span>{% endif %}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <ul class="statements">
+      {% for s in statements %}<li>{{ s }}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="multiples-title">
+    <h2 id="multiples-title">Score against the threshold, validation and test sessions</h2>
+    <p class="card-sub">Three-feature autoencoder, seed 0, threshold {{ threshold|floatformat:3 }} (dashed), logarithmic axis, alert periods shaded. From the evaluation's score files in results/scores/.</p>
+    <div class="multiples">
+      {% for m in multiples %}
+        <figure class="multiple">
+          <figcaption>
+            <span class="replay-chip">Recorded, not live</span>
+            <span class="multiple-name">{{ m.name }}</span>
+            <span class="cell-note mono">{{ m.label }} · {{ m.role }}</span>
+          </figcaption>
+          {% if m.available and m.geometry %}
+            <svg viewBox="0 0 300 90" preserveAspectRatio="none" class="multiple-svg" role="img"
+                 aria-label="{{ m.name }}: {{ m.scored }} scored seconds, {{ m.episodes }} alert episode{{ m.episodes|pluralize }}">
+              {% for span in m.alert_spans %}<rect x="{{ span.0 }}" y="0" width="{{ span.1 }}" height="90" class="multiple-alert"/>{% endfor %}
+              <line x1="0" x2="300" y1="{{ m.geometry.threshold_y }}" y2="{{ m.geometry.threshold_y }}" class="multiple-threshold"/>
+              <path d="{{ m.geometry.path }}" class="multiple-line"/>
+            </svg>
+            <p class="cell-note num">{{ m.scored }} scored seconds · {{ m.episodes }} alert episode{{ m.episodes|pluralize }} · axis {{ m.geometry.lo }} to {{ m.geometry.hi }}</p>
+          {% else %}
+            <p class="muted">results/scores/{{ m.label }}.csv not found; run the evaluation to draw this session.</p>
+          {% endif %}
+        </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="card" aria-labelledby="findings-title">
+    <h2 id="findings-title">Negative findings</h2>
+    {% if not findings_available %}
+      <p class="notice">results/negative_findings.json was not found. Run <code>python analysis/negative_findings.py &lt;raw data directory&gt;</code>.</p>
+    {% else %}
+      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.</p>
+      {% for c in findings %}
+        <h3 class="findings-title">{{ c.title }}</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th scope="col">Test session</th><th scope="col">Reference session</th><th scope="col" class="num-col">vib_rms_g</th><th scope="col" class="num-col">vib_peak_g</th><th scope="col" class="num-col">current</th><th scope="col">Frequency bands</th></tr></thead>
+            <tbody>
+              {% for ch in c.changes %}
+                <tr>
+                  <td class="mono" data-label="Test session">{{ ch.test }}</td>
+                  <td class="mono" data-label="Reference session">{{ ch.reference }}</td>
+                  <td class="num num-col" data-label="vib_rms_g">{{ ch.percent.vib_rms_g|stringformat:"+.1f" }} %</td>
+                  <td class="num num-col" data-label="vib_peak_g">{{ ch.percent.vib_peak_g|stringformat:"+.1f" }} %</td>
+                  <td class="num num-col" data-label="current">{{ ch.percent.current_ma|stringformat:"+.1f" }} %</td>
+                  <td class="num" data-label="Frequency bands">{% if ch.percent.band_1_6_g is not None %}1–6 Hz {{ ch.percent.band_1_6_g|stringformat:"+.1f" }} %, 6–20 Hz {{ ch.percent.band_6_20_g|stringformat:"+.1f" }} %, 20–50 Hz {{ ch.percent.band_20_50_g|stringformat:"+.1f" }} %, 50–100 Hz {{ ch.percent.band_50_100_g|stringformat:"+.1f" }} %{% else %}—{% endif %}</td>
+                </tr>
+              {% endfor %}
+              {% for ch in c.reference_changes %}
+                <tr class="reference-row">
+                  <td class="mono" data-label="Test session">{{ ch.test }} <span class="cell-note">reference, no fault applied</span></td>
+                  <td class="mono" data-label="Reference session">{{ ch.reference }}</td>
+                  <td class="num num-col" data-label="vib_rms_g">{{ ch.percent.vib_rms_g|stringformat:"+.1f" }} %</td>
+                  <td class="num num-col" data-label="vib_peak_g">{{ ch.percent.vib_peak_g|stringformat:"+.1f" }} %</td>
+                  <td class="num num-col" data-label="current">{{ ch.percent.current_ma|stringformat:"+.1f" }} %</td>
+                  <td data-label="Frequency bands">—</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="cell-note">Windows per session: {% for s in c.sessions %}<span class="mono">{{ s.label }}</span> {{ s.windows }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+      {% endfor %}
+    {% endif %}
+  </section>
+
+  {% if metrics_available %}
+  <section class="card" aria-labelledby="env-title">
+    <h2 id="env-title">Environment</h2>
+    <dl class="env-list">
+      <div><dt>Python</dt><dd class="num">{{ environment.python }}</dd></div>
+      {% for name, version in environment.imported.items %}<div><dt>{{ name }} (imported)</dt><dd class="num">{{ version }}</dd></div>{% endfor %}
+      {% for name, version in environment.installed_distributions.items %}<div><dt>{{ name }} (installed)</dt><dd class="num">{{ version|default:"not installed" }}</dd></div>{% endfor %}
+      <div><dt>Platform</dt><dd>{{ environment.platform }}</dd></div>
+      <div><dt>Devices</dt><dd>{{ environment.devices_used }}</dd></div>
+      <div><dt>Git commit</dt><dd class="mono">{{ git.commit|slice:":12" }} ({% if git.clean %}clean working tree{% else %}uncommitted changes{% endif %})</dd></div>
+      <div><dt>Seeds</dt><dd class="num">{{ seeds|join:", " }}</dd></div>
+      <div><dt>Epochs, batch, learning rate</dt><dd class="num">{{ settings.epochs }}, {{ settings.batch_size }}, {{ settings.learning_rate }}</dd></div>
+      <div><dt>Sequence, alert rule, threshold</dt><dd class="num">{{ settings.sequence_length }} s windows; {{ settings.alert_seconds }} s above; {{ settings.threshold_percentile }}th percentile on {{ settings.threshold_set_on }}</dd></div>
+    </dl>
+    <p class="card-note">{{ environment.note }}</p>
+  </section>
+  {% endif %}
+{% endblock %}

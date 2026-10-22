@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% vstatic 'dashboard/css/app.css' %}">
   {% js_importmap %}
 </head>
-<body data-mode="{{ mode|default:'live' }}">
+<body data-mode="{{ mode|default:'none' }}">
 {% block body %}
   <a class="skip-link" href="#main">Skip to content</a>
   {% include "components/icons.html" %}
@@ -33,7 +33,7 @@
   </header>
   <nav class="tabs" aria-label="Sections">
     {% for tab in tabs %}
-      <a href="{{ tab.href }}" {% if tab.key == active_tab %}aria-current="page"{% endif %}>{{ tab.name }}</a>
+      <a href="{{ tab.href }}" {% if tab.carries_mode %}data-mode-tab{% endif %} {% if tab.key == active_tab %}aria-current="page"{% endif %}>{{ tab.name }}</a>
     {% endfor %}
   </nav>
   {% if mode == 'replay' %}
