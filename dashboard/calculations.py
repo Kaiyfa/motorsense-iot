@@ -144,8 +144,8 @@ METHOD_INPUTS = {
     'z_current': 'current',
     'z_vib_rms': 'vib_rms_g',
 }
-SUMMARY_COLUMNS = [
-    # key in metrics summary, column title, digits
+# key in metrics summary, column title, digits
+PER_SECOND_COLUMNS = [
     ('threshold', 'Threshold', 3),
     ('per_second.tp', 'TP', 1),
     ('per_second.fp', 'FP', 1),
@@ -154,13 +154,16 @@ SUMMARY_COLUMNS = [
     ('per_second.precision', 'Precision', 3),
     ('per_second.recall', 'Recall', 3),
     ('per_second.false_positive_rate', 'FPR', 3),
+]
+PER_SESSION_COLUMNS = [
     ('validation_episodes', 'Validation episodes', 1),
     ('normal_test_episodes', 'Normal test episodes', 1),
     ('fault_sessions_alerted', 'Fault sessions alerted (of 3)', 1),
     ('mean_delay_alerted_faults', 'Delay s', 1),
-    ('per_session.precision', 'Session precision', 3),
-    ('per_session.recall', 'Session recall', 3),
+    ('per_session.precision', 'Precision', 3),
+    ('per_session.recall', 'Recall', 3),
 ]
+SUMMARY_COLUMNS = PER_SECOND_COLUMNS + PER_SESSION_COLUMNS
 
 
 def _fmt(value, digits):
@@ -171,13 +174,14 @@ def _fmt(value, digits):
     return f'{value:.{digits}f}'
 
 
-def method_rows(metrics):
+def method_rows(metrics, columns=None):
     """One row per method: cells as 'mean' and, for seeded methods, '±std' and 'min–max'."""
+    columns = columns or SUMMARY_COLUMNS
     rows = []
     for key, data in metrics['methods'].items():
         seeded = 'seeds' in data
         cells = []
-        for col, title, digits in SUMMARY_COLUMNS:
+        for col, title, digits in columns:
             s = data['summary'][col]
             if s['mean'] is None:
                 cells.append({'value': 'n/a', 'spread': ''})

@@ -434,8 +434,14 @@ def evaluation_page(request):
         threshold, multiples = _small_multiples(metrics)
         env = metrics['environment']
         context.update({
-            'rows': calc.method_rows(metrics),
-            'columns': [title for _, title, _ in calc.SUMMARY_COLUMNS],
+            'tables': [
+                {'title': 'Per second', 'note': 'a second counts as detected when its score is above the threshold',
+                 'columns': [t for _, t, _ in calc.PER_SECOND_COLUMNS],
+                 'rows': calc.method_rows(metrics, calc.PER_SECOND_COLUMNS)},
+                {'title': 'Per session', 'note': 'a session counts as detected when at least one alert fired',
+                 'columns': [t for _, t, _ in calc.PER_SESSION_COLUMNS],
+                 'rows': calc.method_rows(metrics, calc.PER_SESSION_COLUMNS)},
+            ],
             'statements': calc.comparison_statements(metrics),
             'settings': metrics['settings'],
             'seeds': metrics['settings']['seeds'],

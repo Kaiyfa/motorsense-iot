@@ -16,25 +16,28 @@
         <p class="card-sub">From results/metrics.json ({{ created_at|slice:":19" }} UTC). Per-second columns count the {{ test_seconds }} scored seconds of each test session; per-session columns treat a session as detected when at least one alert fired. Autoencoder rows: mean over seeds {{ seeds|first }} to {{ seeds|last }}, with ± sample standard deviation and min–max.</p>
       </div>
     </div>
-    <div class="table-wrap">
-      <table class="data-table metrics-table">
-        <thead>
-          <tr><th scope="col">Detector</th><th scope="col">Inputs</th>
-            {% for c in columns %}<th scope="col" class="num-col">{{ c }}</th>{% endfor %}</tr>
-        </thead>
-        <tbody>
-          {% for r in rows %}
-            <tr>
-              <th scope="row">{{ r.name }}{% if r.seeded %}<span class="cell-note">{{ r.seeds }} seeds</span>{% else %}<span class="cell-note">no learning, deterministic</span>{% endif %}</th>
-              <td class="mono">{{ r.inputs }}</td>
-              {% for cell in r.cells %}
-                <td class="num num-col">{{ cell.value }}{% if cell.spread %}<span class="cell-note">{{ cell.spread }}</span>{% endif %}</td>
-              {% endfor %}
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% for table in tables %}
+      <h3 class="findings-title">{{ table.title }} <span class="card-sub">({{ table.note }})</span></h3>
+      <div class="table-wrap">
+        <table class="data-table metrics-table">
+          <thead>
+            <tr><th scope="col">Detector</th>{% if forloop.first %}<th scope="col">Inputs</th>{% endif %}
+              {% for c in table.columns %}<th scope="col" class="num-col">{{ c }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for r in table.rows %}
+              <tr>
+                <th scope="row">{{ r.name }}{% if r.seeded %}<span class="cell-note">{{ r.seeds }} seeds</span>{% else %}<span class="cell-note">no learning, deterministic</span>{% endif %}</th>
+                {% if forloop.parentloop.first %}<td class="mono">{{ r.inputs }}</td>{% endif %}
+                {% for cell in r.cells %}
+                  <td class="num num-col">{{ cell.value }}{% if cell.spread %}<span class="cell-note">{{ cell.spread }}</span>{% endif %}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
     <ul class="statements">
       {% for s in statements %}<li>{{ s }}</li>{% endfor %}
     </ul>

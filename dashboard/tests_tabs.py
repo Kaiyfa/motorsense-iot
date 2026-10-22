@@ -106,6 +106,7 @@ class EvaluationCalculationTests(unittest.TestCase):
         rows = {r['key']: r for r in calc.method_rows(self.metrics)}
         self.assertEqual(set(rows), {'ae_all', 'ae_vibration', 'ae_current', 'z_current', 'z_vib_rms'})
         fp_col = [title for _, title, _ in calc.SUMMARY_COLUMNS].index('FP')
+        self.assertEqual(calc.SUMMARY_COLUMNS, calc.PER_SECOND_COLUMNS + calc.PER_SESSION_COLUMNS)
         z_fp = self.metrics['methods']['z_current']['summary']['per_second.fp']['mean']
         self.assertEqual(rows['z_current']['cells'][fp_col]['value'], f'{z_fp:g}')
         self.assertTrue(rows['ae_all']['seeded'])
@@ -360,7 +361,7 @@ class EvaluationAndSetupViewTests(TabTestCase):
     def test_setup_page(self):
         from dashboard.ml import constants as c
         html = self.client.get(reverse('dashboard:setup')).content.decode()
-        for text in ('MPU-6050', 'INA219', 'DS18B20', 'Known limitations', 'without TLS', 'not calibrated',
+        for text in ('MPU&#8209;6050', 'INA219', 'DS18B20', 'Known limitations', 'without TLS', 'not calibrated',
                      'docs/media/testbed_photo.jpg', f'{int(c.WARMUP_SECONDS)} s', f'{c.RAW_RETENTION_DAYS} days',
                      f'{c.ALERT_SECONDS}th consecutive second'):
             self.assertIn(text, html)
