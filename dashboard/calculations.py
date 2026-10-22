@@ -175,7 +175,11 @@ def _fmt(value, digits):
 
 
 def method_rows(metrics, columns=None):
-    """One row per method: cells as 'mean' and, for seeded methods, '±std' and 'min–max'."""
+    """
+    One row per method: cells as 'mean' and, for seeded methods, '±std' and 'min–max'.
+    A seeded cell that is the same for all seeds has no spread and 'same_for_all_seeds'
+    set; the page says so once per table.
+    """
     columns = columns or SUMMARY_COLUMNS
     rows = []
     for key, data in metrics['methods'].items():
@@ -186,11 +190,13 @@ def method_rows(metrics, columns=None):
             if s['mean'] is None:
                 cells.append({'value': 'n/a', 'spread': ''})
                 continue
-            spread = ''
+            spread, same = '', False
             if seeded and s.get('std') is not None:
-                spread = (f"±{s['std']:.{digits}f} ({_fmt(s['min'], digits)}–{_fmt(s['max'], digits)})"
-                          if s['std'] else 'same for all seeds')
-            cells.append({'value': _fmt(s['mean'], digits), 'spread': spread})
+                if s['std']:
+                    spread = f"±{s['std']:.{digits}f} ({_fmt(s['min'], digits)}–{_fmt(s['max'], digits)})"
+                else:
+                    same = True
+            cells.append({'value': _fmt(s['mean'], digits), 'spread': spread, 'same_for_all_seeds': same})
         rows.append({
             'key': key, 'name': METHOD_NAMES.get(key, key), 'inputs': METHOD_INPUTS.get(key, ''),
             'seeded': seeded, 'seeds': len(data['seeds']) if seeded else 0, 'cells': cells,
@@ -222,10 +228,13 @@ def comparison_statements(metrics):
                    'see the table.')
     z_fp, ae_fp = mean('z_current', 'per_second.fp'), mean('ae_all', 'per_second.fp')
     if z_fp != ae_fp:
+        normal_sessions = _count_word(_normal_test_sessions(metrics))
         out.append(
             f"Per second, the fixed threshold on current has {_fmt(z_fp, 1)} false-positive seconds on the normal "
             f"test session (rate {_fmt(mean('z_current', 'per_second.false_positive_rate'), 3)}) and the "
-            f"autoencoder {_fmt(ae_fp, 1)}; neither turns them into an alert.")
+            f"autoencoder {_fmt(ae_fp, 1)} ({_fmt(abs(z_fp - ae_fp), 1)} seconds in {normal_sessions} "
+            f"session{'' if normal_sessions == 'one' else 's'}; not a significant difference); neither turns them "
+            f"into an alert.")
     v = m['ae_vibration']['summary']['fault_sessions_alerted']
     zv = mean('z_vib_rms', 'fault_sessions_alerted')
     out.append(
@@ -233,6 +242,90 @@ def comparison_statements(metrics):
         f"{_fmt(v['min'], 1)} to {_fmt(v['max'], 1)} of 3 fault sessions depending on the seed "
         f"(per-second recall {_fmt(mean('ae_vibration', 'per_second.recall'), 3)}), and |z| of vib_rms_g on "
         f"{_fmt(zv, 1)} of 3.")
+    return out
+
+
+def _normal_test_sessions(metrics):
+    return sum(1 for s in metrics['settings']['sessions'].values() if s['role'] == 'test_normal')
+
+
+def _count_word(n):
+    return {1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five'}.get(n, str(n))
+
+
+# Titles in results/negative_findings.json (analysis/negative_findings.py, COMPARISONS)
+DRIFT_TITLE = 'Baseline shift after mechanical handling'
+DETECTED_FAULT_TITLE = 'Open motor lead'
+VIBRATION_SIGNALS = ['vib_rms_g', 'vib_peak_g']
+
+
+def _largest(changes, names):
+    values = [abs(ch['percent'][n]) for ch in changes for n in names if ch['percent'].get(n) is not None]
+    return max(values) if values else None
+
+
+def what_this_shows(metrics, findings):
+    """
+    The three sentences of the "What this shows" block on the Evaluation page, built from
+    results/metrics.json and results/negative_findings.json. A sentence whose condition
+    does not hold in the numbers is replaced by a neutral pointer to the tables.
+    Either input may be None (file missing); its sentences are then left out.
+    """
+    out = []
+    if metrics:
+        m = metrics['methods']
+
+        def summary(method, key):
+            return m[method]['summary'][key]
+
+        def mean(method, key):
+            return summary(method, key)['mean']
+
+        current_all = (summary('ae_current', 'fault_sessions_alerted')['min'] == 3
+                       and mean('z_current', 'fault_sessions_alerted') == 3
+                       and mean('ae_current', 'normal_test_episodes') == 0
+                       and mean('z_current', 'normal_test_episodes') == 0)
+        if current_all:
+            out.append(
+                'The current channel carries this fault, and a fixed current threshold does equally well: the '
+                f"current-only autoencoder alerts on all 3 fault sessions after "
+                f"{_fmt(mean('ae_current', 'mean_delay_alerted_faults'), 1)} s, and |z| of current on all 3 after "
+                f"{_fmt(mean('z_current', 'mean_delay_alerted_faults'), 1)} s, with no alert on the normal test "
+                'session.')
+        else:
+            out.append('The current-only detectors do not alert on every fault session without false alerts; '
+                       'see the tables.')
+        vib = summary('ae_vibration', 'fault_sessions_alerted')
+        vib_delay = summary('ae_vibration', 'mean_delay_alerted_faults')
+        current_delay = mean('ae_current', 'mean_delay_alerted_faults')
+        if vib['min'] < 3 and vib_delay['min'] is not None and current_delay is not None \
+                and vib_delay['min'] > current_delay:
+            out.append(
+                'Vibration alone detects it only partly and slowly: the vibration-only autoencoder alerts on '
+                f"{_fmt(vib['min'], 1)} to {_fmt(vib['max'], 1)} of 3 fault sessions depending on the seed, with "
+                f"a mean delay of {_fmt(vib_delay['min'], 1)} to {_fmt(vib_delay['max'], 1)} s against "
+                f"{_fmt(current_delay, 1)} s with current.")
+        else:
+            out.append('Vibration alone does not detect this fault less often or later than current; '
+                       'see the tables.')
+    if findings:
+        comparisons = findings['comparisons']
+        drift = [ch for c in comparisons if c['title'] == DRIFT_TITLE for ch in c['changes']]
+        faults = [ch for c in comparisons if c['title'] not in (DRIFT_TITLE, DETECTED_FAULT_TITLE)
+                  for ch in c['changes']]
+        band_names = [band for band, _ in FINDING_BANDS]
+        largest_vib = _largest(faults, VIBRATION_SIGNALS + band_names)
+        largest_drift = _largest(drift, VIBRATION_SIGNALS)
+        largest_current = _largest(faults, ['current_ma'])
+        if None not in (largest_vib, largest_drift, largest_current) and largest_vib < largest_drift:
+            out.append(
+                'Imbalance, a loosened mount, friction and frequency bands were not detectable on this rig: no '
+                f'vibration or band value changed by more than {largest_vib:.1f} % against its reference, less '
+                f'than the {largest_drift:.1f} % shift between normal sessions after mechanical handling, and '
+                f'current changed by at most {largest_current:.1f} %.')
+        else:
+            out.append('The other faults tried on this rig are compared with their references in the negative '
+                       'findings below.')
     return out
 
 

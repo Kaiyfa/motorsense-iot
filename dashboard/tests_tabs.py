@@ -121,6 +121,52 @@ class EvaluationCalculationTests(unittest.TestCase):
         broken['methods']['z_current']['summary']['fault_sessions_alerted']['mean'] = 2.0
         self.assertNotIn('performs as well', ' '.join(calc.comparison_statements(broken)))
 
+    def test_false_positive_sentence(self):
+        z_fp = self.metrics['methods']['z_current']['summary']['per_second.fp']['mean']
+        ae_fp = self.metrics['methods']['ae_all']['summary']['per_second.fp']['mean']
+        text = ' '.join(calc.comparison_statements(self.metrics))
+        self.assertIn(f'({abs(z_fp - ae_fp):g} seconds in one session; not a significant difference)', text)
+
+    def test_same_for_all_seeds_is_a_flag_not_a_cell_text(self):
+        rows = {r['key']: r for r in calc.method_rows(self.metrics)}
+        recall = [title for _, title, _ in calc.SUMMARY_COLUMNS].index('Recall')
+        cell = rows['ae_all']['cells'][recall]
+        self.assertEqual(cell['spread'], '')
+        self.assertTrue(cell['same_for_all_seeds'])
+        self.assertFalse(any(c['same_for_all_seeds'] for c in rows['z_current']['cells']))   # not seeded
+        vib = rows['ae_vibration']['cells'][recall]
+        self.assertFalse(vib['same_for_all_seeds'])
+        self.assertTrue(vib['spread'].startswith('±'))
+
+    def test_what_this_shows_follows_the_numbers(self):
+        findings = json.loads((REPO / 'results' / 'negative_findings.json').read_text())
+        current, vibration, others = calc.what_this_shows(self.metrics, findings)
+        self.assertTrue(current.startswith('The current channel carries this fault, and a fixed current threshold '
+                                           'does equally well'))
+        self.assertTrue(vibration.startswith('Vibration alone detects it only partly and slowly'))
+        vib_delay = self.metrics['methods']['ae_vibration']['summary']['mean_delay_alerted_faults']
+        self.assertIn(f"mean delay of {vib_delay['min']:g} to {vib_delay['max']:g} s", vibration)
+        self.assertTrue(others.startswith('Imbalance, a loosened mount, friction and frequency bands were not '
+                                          'detectable on this rig'))
+        # largest vibration or band change outside the drift and open-lead comparisons, and the drift itself
+        faults = [ch for c in findings['comparisons']
+                  if c['title'] not in (calc.DRIFT_TITLE, calc.DETECTED_FAULT_TITLE) for ch in c['changes']]
+        largest = max(abs(v) for ch in faults for k, v in ch['percent'].items() if k != 'current_ma' and v is not None)
+        self.assertIn(f'more than {largest:.1f} %', others)
+        self.assertIn('58.9 % shift', others)
+
+        broken = json.loads(json.dumps(self.metrics))
+        broken['methods']['ae_vibration']['summary']['fault_sessions_alerted']['min'] = 3.0
+        broken['methods']['z_current']['summary']['normal_test_episodes']['mean'] = 1.0
+        current, vibration, _ = calc.what_this_shows(broken, findings)
+        self.assertNotIn('equally well', current)
+        self.assertNotIn('only partly', vibration)
+        shifted = json.loads(json.dumps(findings))
+        shifted['comparisons'][0]['changes'][1]['percent'] = {'vib_rms_g': 1.0, 'vib_peak_g': 1.0, 'current_ma': 0.0}
+        shifted['comparisons'][0]['changes'][0]['percent'] = {'vib_rms_g': 1.0, 'vib_peak_g': 1.0, 'current_ma': 0.0}
+        self.assertNotIn('not detectable', calc.what_this_shows(None, shifted)[0])
+        self.assertEqual(calc.what_this_shows(None, None), [])
+
     def test_score_path(self):
         geometry = calc.score_path([None, 1.0, 10.0, None, 100.0], 2.95, 300, 90)
         self.assertEqual((geometry['lo'], geometry['hi']), (1, 1000))
@@ -408,6 +454,10 @@ class EvaluationAndSetupViewTests(TabTestCase):
         self.assertIn('r4_test_drag', html)
         self.assertNotIn('ccuracy', html)
         self.assertEqual(html.count('Recorded, not live'), 5)
+        self.assertEqual(html.count('same for all seeds'), 2)                   # once per table, not per cell
+        self.assertLess(html.index('Not independent trials'), html.index('What this shows'))
+        self.assertLess(html.index('What this shows'), html.index('Detectors on the test sessions'))
+        self.assertIn('not a significant difference', html)
         # the friction runs are shorter than the warm-up: 4 rows x 2 vibration cells, and the band cell of
         # the 2 rows whose reference has frequency bands
         self.assertEqual(html.count('n/a, run shorter than the warm-up'), 10)

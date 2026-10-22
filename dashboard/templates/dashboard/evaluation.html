@@ -4,6 +4,15 @@
 {% block content %}
   <aside class="caveat" role="note" aria-label="Scope of the evaluation">Test set: one normal session and three fault sessions, one fault type (one motor disconnected), one bench rig. Not independent trials. No claim beyond this setup.</aside>
 
+  {% if what_this_shows %}
+  <section class="card what-shows" aria-labelledby="shows-title">
+    <h2 id="shows-title">What this shows</h2>
+    <ul class="statements">
+      {% for s in what_this_shows %}<li>{{ s }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   <h1 class="page-title">Evaluation</h1>
 
   {% if not metrics_available %}
@@ -37,6 +46,7 @@
           </tbody>
         </table>
       </div>
+      {% if table.same_for_all_seeds %}<p class="cell-note">Autoencoder values shown without a spread are the same for all seeds.</p>{% endif %}
     {% endfor %}
     <ul class="statements">
       {% for s in statements %}<li>{{ s }}</li>{% endfor %}

@@ -429,7 +429,8 @@ def _small_multiples(metrics):
 def evaluation_page(request):
     metrics = _read_json('metrics.json')
     findings = _read_json('negative_findings.json')
-    context = {'metrics_available': metrics is not None, 'findings_available': findings is not None}
+    context = {'metrics_available': metrics is not None, 'findings_available': findings is not None,
+               'what_this_shows': calc.what_this_shows(metrics, findings)}
     if metrics:
         threshold, multiples = _small_multiples(metrics)
         env = metrics['environment']
@@ -452,6 +453,9 @@ def evaluation_page(request):
             'created_at': metrics['created_at'],
             'test_seconds': metrics['settings']['sessions']['r5_normal_05']['scored_seconds'],
         })
+        for table in context['tables']:
+            table['same_for_all_seeds'] = any(cell['same_for_all_seeds'] for row in table['rows']
+                                              for cell in row['cells'])
     if findings:
         context['findings'] = [{
             **c,
