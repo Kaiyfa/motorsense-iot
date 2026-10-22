@@ -76,8 +76,9 @@ export function addAlertDetails(state, { alertSinceMs, nowMs, score, threshold, 
     const unit = config.featureUnits[largest.feature];
     const digits = config.featureDigits[largest.feature];
     const base = config.baseline[largest.feature];
-    deviation = `Largest deviation: ${config.featureNames[largest.feature]} ${fmt.signed(largest.z, 1)} σ ` +
-      `(baseline ${fmt.fixed(base.mean, digits)} ${unit}, latest ${fmt.fixed(largest.latest, digits)} ${unit}).`;
+    const nb = fmt.NBSP;
+    deviation = `Largest deviation: ${config.featureNames[largest.feature]} ${fmt.signed(largest.z, 1)}${nb}σ ` +
+      `(baseline ${fmt.fixed(base.mean, digits)}${nb}${unit}, latest ${fmt.fixed(largest.latest, digits)}${nb}${unit}).`;
   } else {
     deviation = `Largest deviation: not available (no readings in the last ${config.changesWindowSeconds} s).`;
   }
@@ -345,14 +346,14 @@ export function createOverview() {
       const bar = row.querySelector('[data-role="bar"]');
       const latestEl = row.querySelector('[data-role="latest"]');
       const latestText = c.latest === null ? emptyMessage
-        : `Latest ${fmt.fixed(c.latest, digits)} ${config.featureUnits[c.feature]}`;
+        : `Latest ${fmt.fixed(c.latest, digits)}${fmt.NBSP}${config.featureUnits[c.feature]}`;
       if (inactive || c.z === null) {
         setText(zEl, '—');
         bar.style.left = '50%'; bar.style.width = '0';
         setText(latestEl, latestText);
         continue;
       }
-      setText(zEl, `${fmt.signed(c.z, 1)} σ`);
+      setText(zEl, `${fmt.signed(c.z, 1)}${fmt.NBSP}σ`);
       const half = Math.min(Math.abs(c.z) / scale, 1) * 50;
       bar.style.left = c.z >= 0 ? '50%' : `${50 - half}%`;
       bar.style.width = `${half}%`;
@@ -383,7 +384,7 @@ export function createOverview() {
       el.classList.toggle('stale', staleSeconds !== null);
       el.querySelector('[data-role="spark"]').setAttribute('d', sparkPath(series, fromMs, endMs, tile.minSpan));
       const range = `${fmt.fixed(Math.min(...values), tile.digits)} to ` +
-                    `${fmt.fixed(Math.max(...values), tile.digits)} ${tile.unit} over 5 min`;
+                    `${fmt.fixed(Math.max(...values), tile.digits)}${fmt.NBSP}${tile.unit} over 5${fmt.NBSP}min`;
       setText(el.querySelector('[data-role="foot"]'),
         staleSeconds !== null ? `Last reading ${fmt.ago(staleSeconds)}. ${range}` : range);
     }

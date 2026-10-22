@@ -1,6 +1,8 @@
 // Number, time and duration formatting. All values are shown with tabular numerals (CSS).
 
 const MINUS = '−';
+// Non-breaking space: a number and its unit never end up on different lines.
+export const NBSP = '\u00a0';
 
 export function fixed(value, digits) {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—';
@@ -27,12 +29,12 @@ export function score(value) {
 export function duration(seconds) {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '—';
   const s = Math.max(0, Math.round(seconds));
-  if (s < 60) return `${s} s`;
+  if (s < 60) return `${s}${NBSP}s`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} min ${String(s % 60).padStart(2, '0')} s`;
+  if (m < 60) return `${m}${NBSP}min ${String(s % 60).padStart(2, '0')}${NBSP}s`;
   const h = Math.floor(m / 60);
-  if (h < 48) return `${h} h ${String(m % 60).padStart(2, '0')} min`;
-  return `${Math.floor(h / 24)} days`;
+  if (h < 48) return `${h}${NBSP}h ${String(m % 60).padStart(2, '0')}${NBSP}min`;
+  return `${Math.floor(h / 24)}${NBSP}days`;
 }
 
 export function ago(seconds) {
