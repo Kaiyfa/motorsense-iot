@@ -508,6 +508,7 @@ class EvaluationAndSetupViewTests(TabTestCase):
         self.assertLess(html.index('Not independent trials'), html.index('What this shows'))
         self.assertLess(html.index('What this shows'), html.index('Detectors on the test sessions'))
         self.assertIn('not a significant difference', html)
+        self.assertIn('Runs shorter than the 180 s warm-up lie entirely inside it', html)
         from dashboard import formats
         from django.utils.dateparse import parse_datetime
         self.assertIn(f"From results/metrics.json ({formats.format_datetime(parse_datetime(metrics['created_at']))})",

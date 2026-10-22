@@ -445,7 +445,7 @@ def evaluation_page(request):
     metrics = _read_json('metrics.json')
     findings = _read_json('negative_findings.json')
     context = {'metrics_available': metrics is not None, 'findings_available': findings is not None,
-               'what_this_shows': calc.what_this_shows(metrics, findings)}
+               'what_this_shows': calc.what_this_shows(metrics, findings), 'warmup_seconds': int(WARMUP_SECONDS)}
     if metrics:
         threshold, multiples = _small_multiples(metrics)
         env = metrics['environment']

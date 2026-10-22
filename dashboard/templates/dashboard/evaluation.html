@@ -87,7 +87,7 @@
     {% if not findings_available %}
       <p class="notice">results/negative_findings.json was not found. Run <code>python analysis/negative_findings.py &lt;raw data directory&gt;</code>.</p>
     {% else %}
-      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.short_runs %} Runs shorter than the warm-up: {{ findings_meta.short_runs }}.{% endif %}</p>
+      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.short_runs %} Runs shorter than the {{ warmup_seconds }} s warm-up lie entirely inside it, so they are compared on current only; their vibration and band cells read n/a.{% endif %}</p>
       {% for c in findings %}
         <h3 class="findings-title">{{ c.title }}</h3>
         <div class="table-wrap">
