@@ -21,6 +21,7 @@ urlpatterns = [
     # Anomaly scores and alerts (written by score_live / replay_session)
     path('api/live/status/', views.live_status, name='live_status'),
     path('api/live/scores/', views.live_scores, name='live_scores'),
+    path('api/live/timeline/', views.live_timeline, name='live_timeline'),
     path('api/alerts/', views.alerts, name='alerts'),
     path('api/replay/<str:label>/', views.replay_detail, name='replay_detail'),
     path('api/replay/<str:label>/readings/', views.replay_readings, name='replay_readings'),

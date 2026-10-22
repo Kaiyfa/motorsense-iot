@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 from .models import AlertEpisode, AnomalyScore, Equipment, ScorerHeartbeat, SensorData
-from dashboard import catalog
+from dashboard import catalog, timeline
 from dashboard.ml import saved_model
 from dashboard.ml.constants import (
     ALERT_SECONDS, IDLE_CURRENT_A, MAX_GAP_SECONDS, SEQUENCE_LENGTH, WARMUP_SECONDS,
@@ -143,11 +143,14 @@ def _overview_context(request, mode, replay_label=None, extra_config=None):
         'baseline': scaler,
         'featureDigits': {key: digits for key, _, _, digits in MODEL_FEATURES},
         'featureUnits': {key: unit for key, _, unit, _ in MODEL_FEATURES},
-        'tiles': [{'key': t['key'], 'digits': t['digits'], 'minSpan': t['min_span']} for t in SENSOR_TILES],
+        'featureNames': {key: name for key, name, _, _ in MODEL_FEATURES},
+        'tiles': [{'key': t['key'], 'digits': t['digits'], 'minSpan': t['min_span'], 'unit': t['unit']}
+                  for t in SENSOR_TILES],
         'urls': {
             'status': reverse('dashboard:live_status'),
             'scores': reverse('dashboard:live_scores'),
             'history': reverse('dashboard:live_sensor_history'),
+            'timeline': reverse('dashboard:live_timeline'),
         },
     }
     config.update(extra_config or {})
@@ -517,6 +520,48 @@ def live_status(request):
         'warmup_elapsed_seconds': state.get('warmup_elapsed_seconds'),
         'consecutive_seconds_above_threshold': state.get('consecutive_above'),
         'scoring_starts_in_seconds': state.get('scoring_starts_in'),
+        'alert_since': _iso(_open_alert_start(latest)) if latest and latest.alert_active else None,
+    })
+
+
+def _open_alert_start(latest):
+    """Start of the live alert episode that is still open."""
+    return (AlertEpisode.objects.filter(mode='live', equipment_id=latest.equipment_id, ended_at__isnull=True,
+                                        started_at__lte=latest.timestamp)
+            .order_by('-started_at').values_list('started_at', flat=True).first())
+
+
+@login_required(login_url='login')
+def live_timeline(request):
+    """State segments of the last N minutes (default 5, max 1440), from stored live scores only."""
+    equipment_id = request.GET.get('equipment_id', LIVE_EQUIPMENT_ID)
+    try:
+        minutes = int(request.GET.get('minutes', 5))
+    except ValueError:
+        return JsonResponse({'status': 'error', 'error': 'minutes must be an integer'}, status=400)
+    minutes = max(1, min(minutes, LIVE_SCORES_MAX_MINUTES))
+    range_end = timezone.now()
+    range_start = range_end - timedelta(minutes=minutes)
+
+    scores = AnomalyScore.objects.filter(mode='live', equipment_id=equipment_id)
+    rows = list(scores.filter(timestamp__gte=range_start, timestamp__lte=range_end).order_by('timestamp')
+                .values_list('timestamp', 'machine_state', 'score', 'alert_active'))
+    previous_ts = (scores.filter(timestamp__lt=range_start).order_by('-timestamp')
+                   .values_list('timestamp', flat=True).first())
+    readings = SensorData.objects.filter(equipment_id=equipment_id, source='pi')
+
+    def readings_between(start, end):
+        return readings.filter(timestamp__gte=start, timestamp__lt=end).exists()
+
+    segments = timeline.build_segments(rows, range_start, range_end, previous_ts=previous_ts,
+                                       offline_after=LIVE_MAX_AGE_SECONDS, readings_between=readings_between)
+    return JsonResponse({
+        'equipment_id': equipment_id,
+        'mode': 'live',
+        'minutes': minutes,
+        'range_start': range_start.isoformat(),
+        'range_end': range_end.isoformat(),
+        'segments': timeline.to_json(segments),
     })
 
 
@@ -641,4 +686,7 @@ def replay_detail(request, label):
         'scored_seconds': sum(1 for r in rows if r.score is not None),
         'scores': [_score_json(r) for r in rows],
         'alerts': [_episode_json(e) for e in episodes],
+        'timeline': timeline.to_json(timeline.build_segments(
+            [(r.timestamp, r.machine_state, r.score, r.alert_active) for r in rows],
+            rows[0].timestamp, rows[-1].timestamp + timeline.ROW)),
     })
