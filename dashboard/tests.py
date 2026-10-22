@@ -155,25 +155,3 @@ class LiveReadingTests(TestCase):
         self.add_reading(age_seconds=1, source='sample')
         data = self.client.get(self.url).json()
         self.assertEqual(data['status'], 'no_data')
-
-
-class DashboardPagesTests(TestCase):
-    def setUp(self):
-        user = User.objects.create_user('tester', password='a-long-password')
-        self.client.force_login(user)
-
-    def test_main_dashboard_labels(self):
-        html = self.client.get(reverse('dashboard:dashboard')).content.decode()
-        self.assertIn('SIMULATED DATA (synthetic, not measured)', html)
-        self.assertIn('Motor testbed EQ-001', html)
-        self.assertIn('Anomaly model not trained yet', html)
-        for removed in ('Ghawar Field', 'EQ-006', '86.6%', 'id="equipmentType"', 'id="location"'):
-            self.assertNotIn(removed, html)
-
-    def test_live_dashboard_labels(self):
-        html = self.client.get(reverse('dashboard:live_dashboard')).content.decode()
-        self.assertIn('Motor testbed EQ-001', html)
-        self.assertIn('No data received', html)
-        self.assertIn('Anomaly model not trained yet', html)
-        for removed in ('Ghawar Field', 'EQ-006', 'Pump', '86.6%', 'Math.random'):
-            self.assertNotIn(removed, html)

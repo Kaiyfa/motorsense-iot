@@ -1,163 +1,28 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Login - MotorSense IoT{% endblock %}</title>
-
-    <!-- Tailwind CSS -->
-    <link rel="stylesheet" href="{% static 'dashboard/css/output.css' %}">
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-        }
-    </style>
-</head>
-<body class="h-full">
-    <div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <div class="max-w-md w-full space-y-8">
-            
-            <!-- Logo and Header -->
-            <div class="text-center">
-                <div class="flex justify-center">
-                    <div class="w-20 h-20 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                </div>
-                <h2 class="mt-6 text-3xl font-bold text-gray-900">
-                    MotorSense IoT
-                </h2>
-                <p class="mt-2 text-sm text-gray-600">
-                    Predictive Maintenance Dashboard
-                </p>
-            </div>
-
-            <!-- Login Card -->
-            <div class="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
-                <div class="px-8 py-6">
-                    <h3 class="text-center text-lg font-semibold text-gray-900 mb-6">
-                        Sign in to your account
-                    </h3>
-
-                    
-
-                    {% if messages %}
-                        {% for message in messages %}
-                        <div class="mb-4 {% if message.tags == 'error' %}bg-red-50 border-red-200{% elif message.tags == 'success' %}bg-blue-50 border-blue-200{% else %}bg-gray-50 border-gray-200{% endif %} border rounded-md p-4">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    {% if message.tags == 'error' %}
-                                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                                    </svg>
-                                    {% else %}
-                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                    </svg>
-                                    {% endif %}
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm {% if message.tags == 'error' %}text-red-800{% elif message.tags == 'success' %}text-blue-800{% else %}text-gray-800{% endif %} font-medium">
-                                        {{ message }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-
-                    <form method="post" action="{% url 'login' %}" class="space-y-6">
-                        {% csrf_token %}
-
-                        <!-- Username Field -->
-                        <div>
-                            <label for="id_username" class="block text-sm font-medium text-gray-700 mb-2">
-                                Username
-                            </label>
-                            <input 
-                                type="text" 
-                                id="id_username" 
-                                name="username" 
-                                required 
-                                autofocus
-                                class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                placeholder="Enter your username"
-                            >
-                        </div>
-
-                        <!-- Password Field -->
-                        <div>
-                            <label for="id_password" class="block text-sm font-medium text-gray-700 mb-2">
-                                Password
-                            </label>
-                            <input 
-                                type="password" 
-                                id="id_password" 
-                                name="password" 
-                                required
-                                class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                placeholder="Enter your password"
-                            >
-                        </div>
-
-                        <!-- Remember Me (Optional) -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <input 
-                                    id="remember_me" 
-                                    name="remember_me" 
-                                    type="checkbox"
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                >
-                                <label for="remember_me" class="ml-2 block text-sm text-gray-700">
-                                    Remember me
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Hidden next field -->
-                        <input type="hidden" name="next" value="{{ next }}">
-
-                        <!-- Submit Button -->
-                        <div>
-                            <button 
-                                type="submit"
-                                class="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
-                            >
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                                </svg>
-                                Sign in
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Footer -->
-                <div class="px-8 py-4 bg-gray-50 border-t border-gray-200">
-                    <p class="text-xs text-center text-gray-500">
-                        © 2025 MotorSense IoT. Predictive Maintenance System.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Additional Info -->
-            <div class="text-center">
-                <p class="text-sm text-gray-600">
-                    Powered by AI & Machine Learning
-                </p>
-            </div>
-
+{% extends "base.html" %}
+{% block title %}Log in · MotorSense IoT{% endblock %}
+{% block body %}
+  <main class="auth" id="main">
+    <section class="card auth-card" aria-labelledby="login-title">
+      <h1 id="login-title">MotorSense IoT</h1>
+      <p class="muted">EQ-001 · Bench rig, 4 DC motors</p>
+      {% if messages %}
+        {% for message in messages %}
+          <p class="notice {% if message.tags == 'error' %}error{% endif %}" role="alert" style="margin-top: var(--space-4)">{{ message }}</p>
+        {% endfor %}
+      {% endif %}
+      <form method="post" class="auth-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.GET.next }}">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required autofocus>
         </div>
-    </div>
-</body>
-</html>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn">Log in</button>
+      </form>
+    </section>
+  </main>
+{% endblock %}

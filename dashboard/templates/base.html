@@ -1,41 +1,55 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en" class="h-full">
+{% load static versioned_static %}<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>{% block title %}MotorSense IoT | Motor Health Dashboard{% endblock %}</title>
-
-    <!-- Tailwind CSS (Compiled) -->
-    <link rel="stylesheet" href="{% static 'dashboard/css/output.css' %}">
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-    {% block extra_css %}{% endblock %}
-
-    <style>
-        /* Apply fonts globally */
-        body {
-            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{% block title %}MotorSense IoT{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232dd4bf' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{% vstatic 'dashboard/css/app.css' %}">
+  {% js_importmap %}
 </head>
-<body class="h-full bg-gray-50 text-gray-900 antialiased">
+<body data-mode="{{ mode|default:'live' }}">
+{% block body %}
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include "components/icons.html" %}
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-name">MotorSense IoT</span>
+      <span class="brand-equipment">EQ-001 · Bench rig, 4 DC motors</span>
+    </div>
+    <nav class="mode-switch" aria-label="Data mode">
+      <a href="{% url 'dashboard:dashboard' %}" data-mode-link="live" {% if mode == 'live' %}aria-current="page"{% endif %}>
+        <span class="mode-dot" aria-hidden="true"></span>Live
+      </a>
+      <a href="{% url 'dashboard:replay' %}" data-mode-link="replay" {% if mode == 'replay' %}aria-current="page"{% endif %}>
+        <span class="mode-dot" aria-hidden="true"></span>Replay
+      </a>
+    </nav>
+    <div class="user-menu">
+      <span>{{ user.username }}</span>
+      <a href="{% url 'logout' %}">Log out</a>
+    </div>
+  </header>
+  <nav class="tabs" aria-label="Sections">
+    {% for tab in tabs %}
+      <a href="{{ tab.href }}" {% if tab.key == active_tab %}aria-current="page"{% endif %}>{{ tab.name }}</a>
+    {% endfor %}
+  </nav>
+  {% if mode == 'replay' %}
+    <div class="replay-banner" role="note">
+      <svg width="18" height="18" aria-hidden="true"><use href="#i-replay"/></svg>
+      <span>REPLAY of recorded session <span class="mono">{{ replay_label }}</span>. Not live data.</span>
+    </div>
+  {% endif %}
+  <main id="main" class="page">
     {% block content %}{% endblock %}
-
-    {% block extra_js %}{% endblock %}
+  </main>
+  <script>
+    // narrow screens: keep the active tab in view in the scrollable tab row
+    document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  </script>
+{% endblock %}
+{% block scripts %}{% endblock %}
 </body>
 </html>

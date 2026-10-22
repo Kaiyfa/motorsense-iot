@@ -333,7 +333,9 @@ class AnomalyApiTests(TestCase):
         status = self.get('live_status').json()
         self.assertEqual(set(status), {
             'equipment_id', 'mode', 'machine_state', 'latest_score', 'latest_score_timestamp', 'threshold',
-            'alert_active', 'seconds_since_last_reading', 'scorer_alive', 'scorer_last_poll_seconds_ago'})
+            'alert_active', 'seconds_since_last_reading', 'scorer_alive', 'scorer_last_poll_seconds_ago',
+            'state_since', 'seconds_in_state', 'warmup_elapsed_seconds', 'consecutive_seconds_above_threshold',
+            'scoring_starts_in_seconds', 'alert_since'})
         self.assertEqual(status['mode'], 'live')
         self.assertIsNone(status['machine_state'])
         self.assertIsNone(status['latest_score'])
@@ -375,15 +377,84 @@ class AnomalyApiTests(TestCase):
     def test_replay_detail(self):
         data = self.get('replay_detail', label='r9_fault').json()
         self.assertEqual(set(data), {'label', 'mode', 'equipment_id', 'threshold', 'count', 'scored_seconds',
-                                     'scores', 'alerts'})
+                                     'scores', 'alerts', 'timeline'})
         self.assertEqual((data['mode'], data['count'], data['threshold']), ('replay', WARMUP + 180, 1.0))
         self.assertEqual(len(data['alerts']), 1)
         self.assertEqual(self.get('replay_detail', label='nope').status_code, 404)
 
+    def test_live_status_state_details(self):
+        rows = [('idle', None, None, False)] * 3 + [('warming_up', None, None, False)] * 5
+        for i, (state, score, above, alert) in enumerate(rows):
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=T0 + timedelta(seconds=i), run_label='x',
+                                        score=score, threshold=1.0, above_threshold=above, alert_active=alert,
+                                        machine_state=state, mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['machine_state'], 'warming_up')
+        self.assertEqual(status['state_since'], (T0 + timedelta(seconds=3)).isoformat())
+        self.assertEqual(status['warmup_elapsed_seconds'], 4.0)
+        self.assertIsNone(status['scoring_starts_in_seconds'])
+        self.assertEqual(status['consecutive_seconds_above_threshold'], 0)
+
+        base = T0 + timedelta(seconds=8)
+        for i in range(12):   # 12 running seconds, the last 4 scored and above
+            scored = i >= 8
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=base + timedelta(seconds=i), run_label='x',
+                                        score=2.0 if scored else None, threshold=1.0,
+                                        above_threshold=True if scored else None, alert_active=False,
+                                        machine_state='running', mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['state_since'], base.isoformat())
+        self.assertEqual(status['consecutive_seconds_above_threshold'], 4)
+        self.assertIsNone(status['warmup_elapsed_seconds'])
+
+    def test_live_status_state_restarts_after_a_gap(self):
+        # warming up, a 12 s gap (the scorer resets), then warming up again
+        times = [T0 + timedelta(seconds=i) for i in range(5)] + [T0 + timedelta(seconds=16 + i) for i in range(4)]
+        for t in times:
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=t, run_label='x', threshold=1.0,
+                                        machine_state='warming_up', mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['state_since'], (T0 + timedelta(seconds=16)).isoformat())
+        self.assertEqual(status['warmup_elapsed_seconds'], 3.0)
+
+    def test_live_timeline_shape_and_gap(self):
+        now = scoring_service.timezone.now()
+        for seconds_ago, state in [(40, 'idle'), (39, 'idle'), (20, 'warming_up'), (19, 'warming_up')]:
+            AnomalyScore.objects.create(equipment=self.eq, timestamp=now - timedelta(seconds=seconds_ago),
+                                        run_label='x', threshold=1.0, machine_state=state, mode='live')
+        data = self.get('live_timeline', query='?minutes=5').json()
+        self.assertEqual(set(data), {'equipment_id', 'mode', 'minutes', 'range_start', 'range_end', 'segments'})
+        self.assertEqual(data['mode'], 'live')
+        self.assertEqual([s['label'] for s in data['segments']], ['Idle', 'Offline', 'Warm-up', 'Offline'])
+        self.assertEqual(set(data['segments'][0]), {'kind', 'label', 'start', 'end', 'seconds'})
+        self.assertEqual(self.get('live_timeline', query='?minutes=x').status_code, 400)
+
+    def test_replay_detail_has_a_timeline(self):
+        data = self.get('replay_detail', label='r9_fault').json()
+        self.assertEqual([s['label'] for s in data['timeline']], ['Warm-up', 'Running', 'Normal', 'Alert', 'Normal'])
+        self.assertNotIn('Offline', [s['label'] for s in data['timeline']])
+
+    def test_alert_since_in_live_status(self):
+        now = scoring_service.timezone.now()
+        AnomalyScore.objects.create(equipment=self.eq, timestamp=now, run_label='x', score=5.0, threshold=1.0,
+                                    above_threshold=True, alert_active=True, machine_state='running', mode='live')
+        AlertEpisode.objects.create(equipment=self.eq, started_at=now - timedelta(seconds=30), peak_score=6.0,
+                                    run_label='x', mode='live')
+        status = self.get('live_status').json()
+        self.assertEqual(status['alert_since'], (now - timedelta(seconds=30)).isoformat())
+
+    def test_replay_readings(self):
+        data = self.get('replay_readings', label='r9_fault').json()
+        self.assertEqual(set(data), {'label', 'mode', 'count', 'data'})
+        self.assertEqual((data['mode'], data['count']), ('replay', WARMUP + 180))
+        self.assertEqual(set(data['data']), {'timestamps', 'run_label', 'vibration_rms', 'vibration_peak',
+                                             'current', 'bus_voltage', 'temperature'})
+        self.assertEqual(self.get('replay_readings', label='nope').status_code, 404)
+
     def test_login_required(self):
         self.client.logout()
-        for name, kwargs in [('live_status', {}), ('live_scores', {}), ('alerts', {}),
-                             ('replay_detail', {'label': 'r9_fault'})]:
+        for name, kwargs in [('live_status', {}), ('live_scores', {}), ('live_timeline', {}), ('alerts', {}),
+                             ('replay_detail', {'label': 'r9_fault'}), ('replay_readings', {'label': 'r9_fault'})]:
             self.assertEqual(self.get(name, **kwargs).status_code, 302)
 
 

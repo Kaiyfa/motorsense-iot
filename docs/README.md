@@ -31,6 +31,59 @@ The venv also lists a `tensorflow 2.20.0` package. It is not the one in use:
 `import tensorflow` gives 2.13.0 (from tensorflow-macos). The installation has been left
 as it is.
 
+## Dashboard
+
+The web dashboard has two modes, switched in the header. Live shows the newest readings and
+scores; Replay steps through a recorded session that was run through the scorer with
+`replay_session`, and always shows the banner "REPLAY of recorded session <label>. Not live
+data." in violet, so the two cannot be confused.
+
+| Command | Purpose |
+|---|---|
+| `python manage.py runserver` | Web server; open http://127.0.0.1:8000/ and log in |
+| `python manage.py score_live --equipment EQ-001` | Live scorer (separate process; needs EQ-001 to exist, i.e. at least one reading received) |
+| `python manage.py replay_session --label r5_fault_open_01` | Store a replay of a recorded session for the Replay mode |
+
+Overview (both modes): the machine state with its icon and how long it has lasted, the time
+since the last reading and whether the scorer is alive (Live), a warm-up progress ring, the
+anomaly score on a logarithmic axis with the alert threshold and alert episodes, a "What
+changed" panel (mean of the last 60 s of each model feature minus the training mean, in
+training standard deviations; data, not a diagnosis) and tiles for the five sensors with
+5-minute sparklines. Live polls the JSON API every 2 s and pauses while the browser tab is
+hidden. Replay plays the recording at 1x, 10x or 30x with a scrubber; `?session=<label>&pos=<n>`
+links to a position. The tabs Sensors, Alerts, Maintenance, Evaluation and Setup are
+placeholders for part 2.
+
+Removed in the rebuild: the simulated mode and its endpoints (`/api/prediction/`,
+`/api/equipment/`, `/api/`, `/api/live/prediction/`, `/live/`), the C-MAPSS prediction service
+(`dashboard/ml/ml_service.py`), and every figure or claim that was not measured on this rig
+(model accuracy, remaining useful life, failure probability, costs and savings).
+
+Under the hero, a state timeline strip shares the score chart's time axis: consecutive
+segments Offline, Idle, Warm-up, Running (not scored yet), Normal and Alert, plus Not scored
+for readings the scorer did not process. They are built only from stored scores and readings
+(`dashboard/timeline.py`; `/api/live/timeline/?minutes=N`, and `timeline` in
+`/api/replay/<label>/`). A gap of more than 5 s between stored seconds is Offline when no
+reading was stored in it. Hover or focus the strip (arrow keys) for each segment's start,
+end and duration. When there is nothing to score, the chart area shows the same segments
+with a sentence on what is going on. While the machine is idle, warming up or offline,
+"What changed" is dimmed and labelled, because deviations from a running baseline mean
+nothing then. In an alert, the hero shows when it started, how long it has lasted and the
+largest deviation from the "What changed" panel; it never names a cause. In Replay the chart
+and the strip stop at the playhead unless "Show whole session" is ticked.
+
+### Static files and browser caching
+
+Every static URL carries a content version, so a browser never runs stale JavaScript or CSS
+after an update. `{% vstatic 'path' %}` (in `dashboard/templatetags/versioned_static.py`)
+appends `?v=<first 12 hex digits of the SHA-256 of the file>`, recomputed whenever the file
+changes on disk. The JavaScript modules import each other through bare names such as
+`ms/overview.js`, which an import map in the page (`{% js_importmap %}`) resolves to versioned
+URLs; a version on the entry script alone would not reach the modules it imports. New
+modules must be added to `JS_MODULES` in that file. No build step or extra package is needed.
+
+Screenshots of each state are in [screenshots/](screenshots/README.md).
+
 ## Live scoring and alerts
 
 The live scorer applies the saved three-feature autoencoder (seed 0, `ml_models/motorsense_ae/`)
