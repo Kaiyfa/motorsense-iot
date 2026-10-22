@@ -31,6 +31,36 @@ The venv also lists a `tensorflow 2.20.0` package. It is not the one in use:
 `import tensorflow` gives 2.13.0 (from tensorflow-macos). The installation has been left
 as it is.
 
+## Dashboard
+
+The web dashboard has two modes, switched in the header. Live shows the newest readings and
+scores; Replay steps through a recorded session that was run through the scorer with
+`replay_session`, and always shows the banner "REPLAY of recorded session <label>. Not live
+data." in violet, so the two cannot be confused.
+
+| Command | Purpose |
+|---|---|
+| `python manage.py runserver` | Web server; open http://127.0.0.1:8000/ and log in |
+| `python manage.py score_live --equipment EQ-001` | Live scorer (separate process; needs EQ-001 to exist, i.e. at least one reading received) |
+| `python manage.py replay_session --label r5_fault_open_01` | Store a replay of a recorded session for the Replay mode |
+
+Overview (both modes): the machine state with its icon and how long it has lasted, the time
+since the last reading and whether the scorer is alive (Live), a warm-up progress ring, the
+anomaly score on a logarithmic axis with the alert threshold and alert episodes, a "What
+changed" panel (mean of the last 60 s of each model feature minus the training mean, in
+training standard deviations; data, not a diagnosis) and tiles for the five sensors with
+5-minute sparklines. Live polls the JSON API every 2 s and pauses while the browser tab is
+hidden. Replay plays the recording at 1x, 10x or 30x with a scrubber; `?session=<label>&pos=<n>`
+links to a position. The tabs Sensors, Alerts, Maintenance, Evaluation and Setup are
+placeholders for part 2.
+
+Removed in the rebuild: the simulated mode and its endpoints (`/api/prediction/`,
+`/api/equipment/`, `/api/`, `/api/live/prediction/`, `/live/`), the C-MAPSS prediction service
+(`dashboard/ml/ml_service.py`), and every figure or claim that was not measured on this rig
+(model accuracy, remaining useful life, failure probability, costs and savings).
+
+Screenshots of each state are in [screenshots/](screenshots/README.md).
+
 ## Live scoring and alerts
 
 The live scorer applies the saved three-feature autoencoder (seed 0, `ml_models/motorsense_ae/`)
