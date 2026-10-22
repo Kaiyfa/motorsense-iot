@@ -15,6 +15,7 @@ Standard deviations are sample standard deviations (n - 1).
 """
 import argparse
 import csv
+import json
 import math
 import statistics
 import sys
@@ -115,12 +116,28 @@ def pct(test, ref):
     return f'{(test - ref) / ref * 100:+.1f}%'
 
 
+def pct_value(test, ref):
+    """The printed percentage as a number (one decimal), or None."""
+    if test is None or ref is None or ref == 0:
+        return None
+    return round((test - ref) / ref * 100, 1)
+
+
+def rounded(stat, digits):
+    return {k: (round(v, digits) if isinstance(v, float) else v) for k, v in stat.items()}
+
+
 def run_comparison(title, references, tests, min_current, sessions):
+    """Print one comparison and return the same numbers as a dict (for the JSON file)."""
     print(f'\n=== {title} ===')
+    record = {'title': title, 'references': references, 'tests': tests,
+              'min_current_ma': min_current, 'missing': [], 'sessions': [],
+              'changes': [], 'reference_changes': []}
     summaries = {}
     for label in references + tests:
         if label not in sessions:
             print(f'  MISSING: label {label!r} not found in the raw data, skipped')
+            record['missing'].append(label)
             continue
         rows, rule = plateau(label, sessions)
         if min_current is not None:
@@ -132,7 +149,7 @@ def run_comparison(title, references, tests, min_current, sessions):
         summaries[label] = (summarize(rows), rule, label in references)
 
     if not summaries:
-        return
+        return record
 
     print(f"  {'session':<18} {'role':<9} {'n':>3}  {'vib_rms_g':>17}  {'vib_peak_g':>17}  "
           f"{'current_ma':>15}  {'current min..max':>16}  window rule")
@@ -142,6 +159,13 @@ def run_comparison(title, references, tests, min_current, sessions):
         print(f"  {label:<18} {'reference' if is_ref else 'test':<9} {s['n']:>3}  "
               f"{fmt(s['vib_rms_g'], 4):>17}  {fmt(s['vib_peak_g'], 4):>17}  "
               f"{fmt(cur, 1):>15}  {span:>16}  {rule}")
+        record['sessions'].append({
+            'label': label, 'role': 'reference' if is_ref else 'test', 'windows': s['n'], 'rule': rule,
+            'vib_rms_g': rounded(s['vib_rms_g'], 4), 'vib_peak_g': rounded(s['vib_peak_g'], 4),
+            'current_ma': rounded(cur, 1),
+            'bands': ({b: round(s[b]['mean'], 4) for b in BANDS}
+                      if all(s[b]['mean'] is not None for b in BANDS) else None),
+        })
 
     banded = [label for label, (s, _, _) in summaries.items()
               if all(s[b]['mean'] is not None for b in BANDS)]
@@ -166,6 +190,9 @@ def run_comparison(title, references, tests, min_current, sessions):
                 if test in banded and ref in banded:
                     parts += [f"{b} {pct(t[b]['mean'], r[b]['mean'])}" for b in BANDS]
                 print(f"    {test} vs {ref}: " + ', '.join(parts))
+                names = SIGNALS + (BANDS if test in banded and ref in banded else [])
+                record['changes'].append({'test': test, 'reference': ref,
+                                          'percent': {n: pct_value(t[n]['mean'], r[n]['mean']) for n in names}})
 
     if len(ref_labels) > 1:
         print('\n  Change between the references (no fault applied):')
@@ -174,11 +201,17 @@ def run_comparison(title, references, tests, min_current, sessions):
                 a, b = summaries[first][0], summaries[second][0]
                 parts = [f"{name} {pct(b[name]['mean'], a[name]['mean'])}" for name in SIGNALS]
                 print(f"    {second} vs {first}: " + ', '.join(parts))
+                record['reference_changes'].append({
+                    'test': second, 'reference': first,
+                    'percent': {n: pct_value(b[n]['mean'], a[n]['mean']) for n in SIGNALS}})
+    return record
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('data_dir', help='Directory with the raw Pi CSV logs (e.g. ~/motorsense-raw-data)')
+    parser.add_argument('--json', default=str(Path(__file__).resolve().parents[1] / 'results' / 'negative_findings.json'),
+                        help='Where to write the numbers as JSON (default: results/negative_findings.json)')
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir).expanduser()
@@ -190,8 +223,23 @@ def main():
     print(f'Plateau: long sessions use all windows after the warm-up label; '
           f'other sessions use the last {PLATEAU_WINDOWS} windows. std = sample std (n - 1).')
 
-    for title, references, tests, min_current in COMPARISONS:
-        run_comparison(title, references, tests, min_current, sessions)
+    records = [run_comparison(title, references, tests, min_current, sessions)
+               for title, references, tests, min_current in COMPARISONS]
+
+    out = Path(args.json)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('w') as f:
+        json.dump({
+            'script': 'analysis/negative_findings.py',
+            'source': 'raw Pi CSV logs (not in the repository)',
+            'plateau_rule': (f'sessions with a _warmup segment: all windows after it; other sessions: the last '
+                             f'{PLATEAU_WINDOWS} windows; friction: only seconds with current above '
+                             f'{FRICTION_MIN_CURRENT_MA:g} mA'),
+            'std': 'sample standard deviation (n - 1)',
+            'percent': 'change of the test mean relative to the reference mean, one decimal, as printed',
+            'comparisons': records,
+        }, f, indent=2)
+    print(f'\nWrote {out}')
 
 
 if __name__ == '__main__':

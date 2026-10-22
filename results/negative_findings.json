@@ -1,0 +1,738 @@
+{
+  "script": "analysis/negative_findings.py",
+  "source": "raw Pi CSV logs (not in the repository)",
+  "plateau_rule": "sessions with a _warmup segment: all windows after it; other sessions: the last 90 windows; friction: only seconds with current above 500 mA",
+  "std": "sample standard deviation (n - 1)",
+  "percent": "change of the test mean relative to the reference mean, one decimal, as printed",
+  "comparisons": [
+    {
+      "title": "Baseline shift after mechanical handling",
+      "references": [
+        "r2_normal_01"
+      ],
+      "tests": [
+        "r3_normal_01",
+        "r4_band_normal_a"
+      ],
+      "min_current_ma": null,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r2_normal_01",
+          "role": "reference",
+          "windows": 480,
+          "rule": "all windows after warm-up",
+          "vib_rms_g": {
+            "mean": 0.0968,
+            "std": 0.0049,
+            "min": 0.0815,
+            "max": 0.1153
+          },
+          "vib_peak_g": {
+            "mean": 0.2388,
+            "std": 0.0291,
+            "min": 0.163,
+            "max": 0.3526
+          },
+          "current_ma": {
+            "mean": 822.6,
+            "std": 4.7,
+            "min": 812.7,
+            "max": 852.8
+          },
+          "bands": null
+        },
+        {
+          "label": "r3_normal_01",
+          "role": "test",
+          "windows": 540,
+          "rule": "all windows after warm-up",
+          "vib_rms_g": {
+            "mean": 0.1193,
+            "std": 0.0057,
+            "min": 0.1038,
+            "max": 0.1374
+          },
+          "vib_peak_g": {
+            "mean": 0.3135,
+            "std": 0.0353,
+            "min": 0.2376,
+            "max": 0.4921
+          },
+          "current_ma": {
+            "mean": 815.5,
+            "std": 4.6,
+            "min": 805.3,
+            "max": 854.3
+          },
+          "bands": null
+        },
+        {
+          "label": "r4_band_normal_a",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1452,
+            "std": 0.01,
+            "min": 0.1153,
+            "max": 0.1679
+          },
+          "vib_peak_g": {
+            "mean": 0.3794,
+            "std": 0.0449,
+            "min": 0.2947,
+            "max": 0.4728
+          },
+          "current_ma": {
+            "mean": 823.3,
+            "std": 2.5,
+            "min": 816.4,
+            "max": 828.6
+          },
+          "bands": {
+            "band_1_6_g": 0.0305,
+            "band_6_20_g": 0.0553,
+            "band_20_50_g": 0.0642,
+            "band_50_100_g": 0.1125
+          }
+        }
+      ],
+      "changes": [
+        {
+          "test": "r3_normal_01",
+          "reference": "r2_normal_01",
+          "percent": {
+            "vib_rms_g": 23.2,
+            "vib_peak_g": 31.3,
+            "current_ma": -0.9
+          }
+        },
+        {
+          "test": "r4_band_normal_a",
+          "reference": "r2_normal_01",
+          "percent": {
+            "vib_rms_g": 49.9,
+            "vib_peak_g": 58.9,
+            "current_ma": 0.1
+          }
+        }
+      ],
+      "reference_changes": []
+    },
+    {
+      "title": "Imbalance (taped weights)",
+      "references": [
+        "r4_test_drag",
+        "r4_band_normal_a"
+      ],
+      "tests": [
+        "r3_test_fault",
+        "r3_test_fault2"
+      ],
+      "min_current_ma": null,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r4_test_drag",
+          "role": "reference",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1482,
+            "std": 0.0105,
+            "min": 0.1252,
+            "max": 0.1702
+          },
+          "vib_peak_g": {
+            "mean": 0.3779,
+            "std": 0.0429,
+            "min": 0.2874,
+            "max": 0.4777
+          },
+          "current_ma": {
+            "mean": 824.2,
+            "std": 4.3,
+            "min": 817.8,
+            "max": 848.2
+          },
+          "bands": {
+            "band_1_6_g": 0.0255,
+            "band_6_20_g": 0.0584,
+            "band_20_50_g": 0.0655,
+            "band_50_100_g": 0.1179
+          }
+        },
+        {
+          "label": "r4_band_normal_a",
+          "role": "reference",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1452,
+            "std": 0.01,
+            "min": 0.1153,
+            "max": 0.1679
+          },
+          "vib_peak_g": {
+            "mean": 0.3794,
+            "std": 0.0449,
+            "min": 0.2947,
+            "max": 0.4728
+          },
+          "current_ma": {
+            "mean": 823.3,
+            "std": 2.5,
+            "min": 816.4,
+            "max": 828.6
+          },
+          "bands": {
+            "band_1_6_g": 0.0305,
+            "band_6_20_g": 0.0553,
+            "band_20_50_g": 0.0642,
+            "band_50_100_g": 0.1125
+          }
+        },
+        {
+          "label": "r3_test_fault",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1346,
+            "std": 0.0056,
+            "min": 0.1176,
+            "max": 0.1492
+          },
+          "vib_peak_g": {
+            "mean": 0.3494,
+            "std": 0.0386,
+            "min": 0.265,
+            "max": 0.4521
+          },
+          "current_ma": {
+            "mean": 823.8,
+            "std": 2.7,
+            "min": 817.4,
+            "max": 828.8
+          },
+          "bands": null
+        },
+        {
+          "label": "r3_test_fault2",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1249,
+            "std": 0.0064,
+            "min": 0.11,
+            "max": 0.1386
+          },
+          "vib_peak_g": {
+            "mean": 0.3247,
+            "std": 0.0356,
+            "min": 0.2661,
+            "max": 0.4402
+          },
+          "current_ma": {
+            "mean": 824.2,
+            "std": 2.7,
+            "min": 817.8,
+            "max": 830.0
+          },
+          "bands": null
+        }
+      ],
+      "changes": [
+        {
+          "test": "r3_test_fault",
+          "reference": "r4_test_drag",
+          "percent": {
+            "vib_rms_g": -9.2,
+            "vib_peak_g": -7.6,
+            "current_ma": -0.0
+          }
+        },
+        {
+          "test": "r3_test_fault",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": -7.3,
+            "vib_peak_g": -7.9,
+            "current_ma": 0.1
+          }
+        },
+        {
+          "test": "r3_test_fault2",
+          "reference": "r4_test_drag",
+          "percent": {
+            "vib_rms_g": -15.7,
+            "vib_peak_g": -14.1,
+            "current_ma": 0.0
+          }
+        },
+        {
+          "test": "r3_test_fault2",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": -14.0,
+            "vib_peak_g": -14.4,
+            "current_ma": 0.1
+          }
+        }
+      ],
+      "reference_changes": [
+        {
+          "test": "r4_band_normal_a",
+          "reference": "r4_test_drag",
+          "percent": {
+            "vib_rms_g": -2.0,
+            "vib_peak_g": 0.4,
+            "current_ma": -0.1
+          }
+        }
+      ]
+    },
+    {
+      "title": "Imbalance, frequency bands",
+      "references": [
+        "r4_band_normal_a"
+      ],
+      "tests": [
+        "r4_band_fault_a"
+      ],
+      "min_current_ma": null,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r4_band_normal_a",
+          "role": "reference",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1452,
+            "std": 0.01,
+            "min": 0.1153,
+            "max": 0.1679
+          },
+          "vib_peak_g": {
+            "mean": 0.3794,
+            "std": 0.0449,
+            "min": 0.2947,
+            "max": 0.4728
+          },
+          "current_ma": {
+            "mean": 823.3,
+            "std": 2.5,
+            "min": 816.4,
+            "max": 828.6
+          },
+          "bands": {
+            "band_1_6_g": 0.0305,
+            "band_6_20_g": 0.0553,
+            "band_20_50_g": 0.0642,
+            "band_50_100_g": 0.1125
+          }
+        },
+        {
+          "label": "r4_band_fault_a",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1457,
+            "std": 0.0091,
+            "min": 0.1263,
+            "max": 0.1654
+          },
+          "vib_peak_g": {
+            "mean": 0.3892,
+            "std": 0.0488,
+            "min": 0.3028,
+            "max": 0.594
+          },
+          "current_ma": {
+            "mean": 823.0,
+            "std": 2.9,
+            "min": 815.3,
+            "max": 828.2
+          },
+          "bands": {
+            "band_1_6_g": 0.0284,
+            "band_6_20_g": 0.0577,
+            "band_20_50_g": 0.0684,
+            "band_50_100_g": 0.1077
+          }
+        }
+      ],
+      "changes": [
+        {
+          "test": "r4_band_fault_a",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": 0.3,
+            "vib_peak_g": 2.6,
+            "current_ma": -0.0,
+            "band_1_6_g": -7.1,
+            "band_6_20_g": 4.3,
+            "band_20_50_g": 6.4,
+            "band_50_100_g": -4.3
+          }
+        }
+      ],
+      "reference_changes": []
+    },
+    {
+      "title": "Loosened motor mount",
+      "references": [
+        "r3_normal_01"
+      ],
+      "tests": [
+        "r3_test_loose"
+      ],
+      "min_current_ma": null,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r3_normal_01",
+          "role": "reference",
+          "windows": 540,
+          "rule": "all windows after warm-up",
+          "vib_rms_g": {
+            "mean": 0.1193,
+            "std": 0.0057,
+            "min": 0.1038,
+            "max": 0.1374
+          },
+          "vib_peak_g": {
+            "mean": 0.3135,
+            "std": 0.0353,
+            "min": 0.2376,
+            "max": 0.4921
+          },
+          "current_ma": {
+            "mean": 815.5,
+            "std": 4.6,
+            "min": 805.3,
+            "max": 854.3
+          },
+          "bands": null
+        },
+        {
+          "label": "r3_test_loose",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1246,
+            "std": 0.0098,
+            "min": 0.1071,
+            "max": 0.1651
+          },
+          "vib_peak_g": {
+            "mean": 0.3374,
+            "std": 0.0818,
+            "min": 0.2494,
+            "max": 0.74
+          },
+          "current_ma": {
+            "mean": 825.1,
+            "std": 3.6,
+            "min": 816.2,
+            "max": 832.8
+          },
+          "bands": null
+        }
+      ],
+      "changes": [
+        {
+          "test": "r3_test_loose",
+          "reference": "r3_normal_01",
+          "percent": {
+            "vib_rms_g": 4.4,
+            "vib_peak_g": 7.6,
+            "current_ma": 1.2
+          }
+        }
+      ],
+      "reference_changes": []
+    },
+    {
+      "title": "Friction by hand (only seconds with current above 500 mA)",
+      "references": [
+        "r3_normal_01",
+        "r4_band_normal_a"
+      ],
+      "tests": [
+        "r4_tune",
+        "r4_tune2"
+      ],
+      "min_current_ma": 500.0,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r3_normal_01",
+          "role": "reference",
+          "windows": 540,
+          "rule": "all windows after warm-up, current > 500 mA",
+          "vib_rms_g": {
+            "mean": 0.1193,
+            "std": 0.0057,
+            "min": 0.1038,
+            "max": 0.1374
+          },
+          "vib_peak_g": {
+            "mean": 0.3135,
+            "std": 0.0353,
+            "min": 0.2376,
+            "max": 0.4921
+          },
+          "current_ma": {
+            "mean": 815.5,
+            "std": 4.6,
+            "min": 805.3,
+            "max": 854.3
+          },
+          "bands": null
+        },
+        {
+          "label": "r4_band_normal_a",
+          "role": "reference",
+          "windows": 90,
+          "rule": "last 90 windows, current > 500 mA",
+          "vib_rms_g": {
+            "mean": 0.1452,
+            "std": 0.01,
+            "min": 0.1153,
+            "max": 0.1679
+          },
+          "vib_peak_g": {
+            "mean": 0.3794,
+            "std": 0.0449,
+            "min": 0.2947,
+            "max": 0.4728
+          },
+          "current_ma": {
+            "mean": 823.3,
+            "std": 2.5,
+            "min": 816.4,
+            "max": 828.6
+          },
+          "bands": {
+            "band_1_6_g": 0.0305,
+            "band_6_20_g": 0.0553,
+            "band_20_50_g": 0.0642,
+            "band_50_100_g": 0.1125
+          }
+        },
+        {
+          "label": "r4_tune",
+          "role": "test",
+          "windows": 59,
+          "rule": "last 90 windows, current > 500 mA",
+          "vib_rms_g": {
+            "mean": 0.109,
+            "std": 0.0277,
+            "min": 0.0381,
+            "max": 0.1427
+          },
+          "vib_peak_g": {
+            "mean": 0.288,
+            "std": 0.0767,
+            "min": 0.1333,
+            "max": 0.4528
+          },
+          "current_ma": {
+            "mean": 831.0,
+            "std": 4.0,
+            "min": 821.9,
+            "max": 841.1
+          },
+          "bands": {
+            "band_1_6_g": 0.0243,
+            "band_6_20_g": 0.0396,
+            "band_20_50_g": 0.0498,
+            "band_50_100_g": 0.0844
+          }
+        },
+        {
+          "label": "r4_tune2",
+          "role": "test",
+          "windows": 57,
+          "rule": "last 90 windows, current > 500 mA",
+          "vib_rms_g": {
+            "mean": 0.1047,
+            "std": 0.0284,
+            "min": 0.0545,
+            "max": 0.1462
+          },
+          "vib_peak_g": {
+            "mean": 0.2723,
+            "std": 0.078,
+            "min": 0.1196,
+            "max": 0.3956
+          },
+          "current_ma": {
+            "mean": 829.2,
+            "std": 3.2,
+            "min": 818.7,
+            "max": 834.8
+          },
+          "bands": {
+            "band_1_6_g": 0.0235,
+            "band_6_20_g": 0.0375,
+            "band_20_50_g": 0.0488,
+            "band_50_100_g": 0.0821
+          }
+        }
+      ],
+      "changes": [
+        {
+          "test": "r4_tune",
+          "reference": "r3_normal_01",
+          "percent": {
+            "vib_rms_g": -8.7,
+            "vib_peak_g": -8.1,
+            "current_ma": 1.9
+          }
+        },
+        {
+          "test": "r4_tune",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": -24.9,
+            "vib_peak_g": -24.1,
+            "current_ma": 0.9,
+            "band_1_6_g": -20.4,
+            "band_6_20_g": -28.4,
+            "band_20_50_g": -22.5,
+            "band_50_100_g": -25.0
+          }
+        },
+        {
+          "test": "r4_tune2",
+          "reference": "r3_normal_01",
+          "percent": {
+            "vib_rms_g": -12.3,
+            "vib_peak_g": -13.2,
+            "current_ma": 1.7
+          }
+        },
+        {
+          "test": "r4_tune2",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": -27.9,
+            "vib_peak_g": -28.2,
+            "current_ma": 0.7,
+            "band_1_6_g": -22.9,
+            "band_6_20_g": -32.2,
+            "band_20_50_g": -24.1,
+            "band_50_100_g": -27.0
+          }
+        }
+      ],
+      "reference_changes": [
+        {
+          "test": "r4_band_normal_a",
+          "reference": "r3_normal_01",
+          "percent": {
+            "vib_rms_g": 21.7,
+            "vib_peak_g": 21.0,
+            "current_ma": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "title": "Open motor lead",
+      "references": [
+        "r4_band_normal_a"
+      ],
+      "tests": [
+        "r4_test_open"
+      ],
+      "min_current_ma": null,
+      "missing": [],
+      "sessions": [
+        {
+          "label": "r4_band_normal_a",
+          "role": "reference",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1452,
+            "std": 0.01,
+            "min": 0.1153,
+            "max": 0.1679
+          },
+          "vib_peak_g": {
+            "mean": 0.3794,
+            "std": 0.0449,
+            "min": 0.2947,
+            "max": 0.4728
+          },
+          "current_ma": {
+            "mean": 823.3,
+            "std": 2.5,
+            "min": 816.4,
+            "max": 828.6
+          },
+          "bands": {
+            "band_1_6_g": 0.0305,
+            "band_6_20_g": 0.0553,
+            "band_20_50_g": 0.0642,
+            "band_50_100_g": 0.1125
+          }
+        },
+        {
+          "label": "r4_test_open",
+          "role": "test",
+          "windows": 90,
+          "rule": "last 90 windows",
+          "vib_rms_g": {
+            "mean": 0.1642,
+            "std": 0.0067,
+            "min": 0.1478,
+            "max": 0.1784
+          },
+          "vib_peak_g": {
+            "mean": 0.4213,
+            "std": 0.0425,
+            "min": 0.3462,
+            "max": 0.5841
+          },
+          "current_ma": {
+            "mean": 703.2,
+            "std": 2.9,
+            "min": 696.4,
+            "max": 708.2
+          },
+          "bands": {
+            "band_1_6_g": 0.0289,
+            "band_6_20_g": 0.039,
+            "band_20_50_g": 0.0602,
+            "band_50_100_g": 0.1425
+          }
+        }
+      ],
+      "changes": [
+        {
+          "test": "r4_test_open",
+          "reference": "r4_band_normal_a",
+          "percent": {
+            "vib_rms_g": 13.1,
+            "vib_peak_g": 11.0,
+            "current_ma": -14.6,
+            "band_1_6_g": -5.3,
+            "band_6_20_g": -29.4,
+            "band_20_50_g": -6.2,
+            "band_50_100_g": 26.6
+          }
+        }
+      ],
+      "reference_changes": []
+    }
+  ]
+}
