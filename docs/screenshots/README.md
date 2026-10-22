@@ -95,6 +95,17 @@ label `screenshot_feed` and scored by the real `score_live`. A first attempt at 
 stopped after 63 rows because a server restart left a 6 s gap; those rows were deleted and the
 feed started again. The fed rows and the maintenance fixture were deleted afterwards.
 
+## Like-for-like negative findings: Evaluation retaken again
+
+`evaluation_1440.png` and `evaluation_390.png` were retaken on 2026-10-22 (same browser and
+settings, code as of `434943f`) after the negative findings were recomputed: vibration and frequency
+bands are compared only like with like ("n/a, runs not comparable" otherwise), the imbalance and
+loose-mount runs are compared with `r2_test_baseline`, each comparison says why its reference was
+chosen, a new table shows the spread between the five valid normal sessions, and the third "What
+this shows" sentence sets every like-for-like change against that spread. These two files replace
+the Evaluation screenshots described in the two sections above. They read only the committed result
+files; no data was fed for them.
+
 Since the polish, every page's header also says "All times in Asia/Riyadh (UTC+3)". The other
 screenshots in this directory were taken before that line existed and were not retaken; apart
 from that line, their content is unchanged (the capturing browser was already at UTC+3).
