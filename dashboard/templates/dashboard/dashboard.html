@@ -1195,6 +1195,72 @@
     #getPredictionBtn.live-mode {
         display: none;
     }
+
+    .live-sensor-readings.active {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .live-sensor-value.no-data {
+        color: var(--muted-foreground);
+    }
+
+    /* Mode-specific visibility */
+    .live-only {
+        display: none;
+    }
+
+    .dashboard-container.live-active .live-only {
+        display: block;
+    }
+
+    .dashboard-container.live-active .simulated-only,
+    .dashboard-container.live-active .metrics-grid,
+    .dashboard-container.live-active .health-gauges,
+    .dashboard-container.live-active .tabs,
+    .dashboard-container.live-active .tab-content {
+        display: none !important;
+    }
+
+    /* Permanent badge shown in simulated mode */
+    .simulated-badge {
+        display: inline-block;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem 1rem;
+        border: 2px solid var(--status-caution);
+        border-radius: 0.5rem;
+        background: rgba(245, 158, 11, 0.12);
+        color: var(--status-caution);
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    /* Live mode: no fresh reading */
+    .live-no-data {
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.5rem;
+        border: 2px solid var(--status-critical);
+        border-radius: 0.75rem;
+        background: rgba(239, 68, 68, 0.08);
+        color: var(--status-critical);
+        font-weight: 600;
+    }
+
+    .live-no-data.hidden {
+        display: none !important;
+    }
+
+    /* Live mode: where the RUL / confidence / health gauges were */
+    .live-model-placeholder {
+        margin-bottom: 2rem;
+        padding: 2.5rem;
+        border: 1px dashed var(--border);
+        border-radius: 0.75rem;
+        background: var(--card);
+        color: var(--muted-foreground);
+        font-size: 1.25rem;
+        font-weight: 600;
+        text-align: center;
+    }
 </style>
 {% endblock %}
 
@@ -1213,22 +1279,10 @@
         <div class="config-section">
             <h3 class="config-section-title">Configuration</h3>
 
-            <!-- Equipment Type -->
-            <div class="form-group">
-                <label class="form-label">Equipment Type</label>
-                <select id="equipmentType" class="form-select">
-                    <option value="Pump">Pump</option>
-                    <option value="Compressor">Compressor</option>
-                    <option value="Turbine">Turbine</option>
-                    <option value="Motor">Motor</option>
-                </select>
-            </div>
-
-            <!-- Equipment ID -->
-            <div class="form-group">
+            <!-- Equipment ID (simulated mode) -->
+            <div class="form-group simulated-only">
                 <label class="form-label">Equipment ID</label>
                 <select id="equipmentId" class="form-select">
-                    <option value="EQ-006">EQ-006</option>
                     <option value="EQ-001">EQ-001</option>
                     <option value="EQ-002">EQ-002</option>
                     <option value="EQ-003">EQ-003</option>
@@ -1237,14 +1291,10 @@
                 </select>
             </div>
 
-            <!-- Location -->
-            <div class="form-group">
-                <label class="form-label">Location</label>
-                <select id="location" class="form-select">
-                    <option value="Ghawar Field">Ghawar Field</option>
-                    <option value="Safaniya Field">Safaniya Field</option>
-                    <option value="Khurais Field">Khurais Field</option>
-                </select>
+            <!-- Equipment (live mode: fixed) -->
+            <div class="form-group live-only">
+                <label class="form-label">Equipment</label>
+                <p class="metric-value">Motor testbed EQ-001</p>
             </div>
 
             <!-- Data Source -->
@@ -1268,11 +1318,6 @@
             <h3 class="config-section-title">System Info</h3>
 
             <div class="metric-item">
-                <p class="metric-label">Model Accuracy</p>
-                <p class="metric-value">86.6%</p>
-            </div>
-
-            <div class="metric-item">
                 <p class="metric-label">Total Predictions</p>
                 <p class="metric-value" id="totalPredictions">0</p>
             </div>
@@ -1285,10 +1330,8 @@
         <!-- Header -->
         <div class="header">
             <div class="header-info">
-                <h1 class="header-title">
-                    <span id="headerEquipmentType">Pump</span> <span id="headerEquipmentId">EQ-006</span>
-                </h1>
-                <p class="header-subtitle" id="headerLocation">Ghawar Field</p>
+                <h1 class="header-title" id="headerTitle">Simulated equipment EQ-001</h1>
+                <p class="header-subtitle" id="headerSubtitle">Simulated data</p>
             </div>
 
             <div class="header-actions">
@@ -1327,6 +1370,16 @@
                     <span id="btnText">Get Latest Prediction</span>
                 </button>
             </div>
+        </div>
+
+        <!-- Permanent badge in Simulated mode -->
+        <div class="simulated-badge simulated-only" id="simulatedBadge">
+            SIMULATED DATA (synthetic, not measured)
+        </div>
+
+        <!-- Live mode: shown when there is no reading from the last 15 s -->
+        <div class="live-no-data live-only hidden" id="liveNoData">
+            No data received. <span id="liveLastReading">No reading has been stored yet.</span>
         </div>
 
         <!-- Live Sensor Readings (shown only in Live mode) -->
@@ -1369,6 +1422,24 @@
                     <span id="liveCurrentStatus">Waiting for data...</span>
                 </div>
             </div>
+
+            <!-- Bus Voltage -->
+            <div class="live-sensor-card" id="liveBusVoltageCard">
+                <div class="live-sensor-label">🔋 BUS VOLTAGE</div>
+                <div class="live-sensor-value">
+                    <span id="liveBusVoltageValue">--</span>
+                    <span class="live-sensor-unit">V</span>
+                </div>
+                <div class="live-sensor-status">
+                    <div class="live-status-dot" id="liveBusVoltageDot"></div>
+                    <span id="liveBusVoltageStatus">Waiting for data...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live mode: replaces the RUL, confidence and health gauges -->
+        <div class="live-model-placeholder live-only" id="liveModelPlaceholder">
+            Anomaly model not trained yet
         </div>
 
         <!-- Metrics Grid -->
@@ -1558,10 +1629,10 @@
 <script>
 
     // Global State Management
+    const LIVE_EQUIPMENT_ID = 'EQ-001';
+
     let state = {
-        equipmentType: 'Pump',
-        equipmentId: 'EQ-006',
-        location: 'Ghawar Field',
+        equipmentId: 'EQ-001',  // simulated mode selection
         dataSource: 'simulated',  // 'simulated' or 'live'
         isLiveMode: false,
         prediction: null,
@@ -1569,10 +1640,8 @@
         totalPredictions: 0,
         charts: {},
 
-        // Live mode intervals
+        // Live mode interval
         liveSensorInterval: null,
-        livePredictionInterval: null,
-        liveHistoryInterval: null,
     };
 
     // INITIALIZATION
@@ -1744,16 +1813,6 @@
     // EVENT LISTENERS
 
     function setupEventListeners() {
-        // Equipment Type Selector
-        const equipmentType = document.getElementById('equipmentType');
-        if (equipmentType) {
-            equipmentType.addEventListener('change', function (e) {
-                state.equipmentType = e.target.value;
-                updateHeader();
-                console.log(`Equipment type changed to: ${state.equipmentType}`);
-            });
-        }
-
         // Equipment ID Selector
         const equipmentId = document.getElementById('equipmentId');
         if (equipmentId) {
@@ -1761,16 +1820,6 @@
                 state.equipmentId = e.target.value;
                 updateHeader();
                 console.log(`Equipment ID changed to: ${state.equipmentId}`);
-            });
-        }
-
-        // Location Selector
-        const location = document.getElementById('location');
-        if (location) {
-            location.addEventListener('change', function (e) {
-                state.location = e.target.value;
-                updateHeader();
-                console.log(`Location changed to: ${state.location}`);
             });
         }
 
@@ -1818,6 +1867,8 @@
 
     function activateLiveMode() {
         state.isLiveMode = true;
+        document.querySelector('.dashboard-container').classList.add('live-active');
+        updateHeader();
 
         // Show live sensor readings
         const liveSensorReadings = document.getElementById('liveSensorReadings');
@@ -1837,10 +1888,10 @@
             autoRefreshIndicator.classList.add('active');
         }
 
-        // Make status indicator pulse
+        // Make status indicator pulse (drop any simulated prediction colour)
         const statusDot = document.getElementById('statusDot');
         if (statusDot) {
-            statusDot.classList.add('live-mode-active');
+            statusDot.className = 'status-dot live-mode-active';
         }
 
         // Start live data polling
@@ -1851,6 +1902,8 @@
 
     function deactivateLiveMode() {
         state.isLiveMode = false;
+        document.querySelector('.dashboard-container').classList.remove('live-active');
+        updateHeader();
 
         // Hide live sensor readings
         const liveSensorReadings = document.getElementById('liveSensorReadings');
@@ -1891,20 +1944,16 @@
 
         // Fetch immediately
         fetchLiveSensorReading();
-        fetchLivePrediction();
+        fetchLivePredictionStatus();
 
-        // Set up intervals
-        state.liveSensorInterval = setInterval(fetchLiveSensorReading, 2000);  // 2 seconds
-        state.livePredictionInterval = setInterval(fetchLivePrediction, 300000);  // 5 minutes
-        state.liveHistoryInterval = setInterval(updateSensorTrendFromLive, 5000);  // 5 seconds
+        // Only stored readings are shown; poll every 2 seconds
+        state.liveSensorInterval = setInterval(fetchLiveSensorReading, 2000);
     }
 
     function stopLiveDataPolling() {
         console.log('⏸  Stopping live data polling...');
 
         clearInterval(state.liveSensorInterval);
-        clearInterval(state.livePredictionInterval);
-        clearInterval(state.liveHistoryInterval);
     }
 
     // ============================================================================
@@ -1913,151 +1962,72 @@
 
     async function fetchLiveSensorReading() {
         try {
-            const response = await fetch(`/api/live/reading/?equipment_id=${state.equipmentId}`);
+            const response = await fetch(`/api/live/reading/?equipment_id=${LIVE_EQUIPMENT_ID}`);
             const data = await response.json();
-
-            if (data.success) {
-                updateLiveSensorDisplays(data);
-            }
+            updateLiveSensorDisplays(data);
         } catch (error) {
             console.error('❌ Error fetching live sensor reading:', error);
+            updateLiveSensorDisplays({ status: 'no_data', last_timestamp: null });
         }
     }
 
-    async function fetchLivePrediction() {
+    async function fetchLivePredictionStatus() {
+        const placeholder = document.getElementById('liveModelPlaceholder');
         try {
-            const csrfToken = getCSRFToken();
-
-            const response = await fetch(
-                `/api/live/prediction/?equipment_id=${state.equipmentId}&equipment_type=${state.equipmentType}&location=${state.location}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    }
-                }
-            );
-
+            const response = await fetch(`/api/live/prediction/?equipment_id=${LIVE_EQUIPMENT_ID}`);
             const data = await response.json();
-
-            if (data.success) {
-                // Update the same dashboard displays as simulated mode
-                updateDashboard(data);
-                state.totalPredictions++;
-                updateSystemInfo();
+            if (placeholder && data.status === 'model_not_available') {
+                placeholder.textContent = 'Anomaly model not trained yet';
             }
         } catch (error) {
-            console.error('❌ Error fetching live prediction:', error);
+            console.error('❌ Error fetching live prediction status:', error);
         }
-    }
-
-    async function updateSensorTrendFromLive() {
-        try {
-            const response = await fetch(`/api/live/history/?equipment_id=${state.equipmentId}&seconds=150`);
-            const data = await response.json();
-
-            if (data.success && data.data && data.data.sensors) {
-                // Update the sensor trend chart with live data
-                updateSensorTrendChartLive(data.data);
-            }
-        } catch (error) {
-            console.error('❌ Error fetching sensor history:', error);
-        }
-    }
-
-    function updateSensorTrendChartLive(liveData) {
-        if (!state.charts.sensorTrend) return;
-
-        const chart = state.charts.sensorTrend;
-
-        // Transform live data to match expected format
-        const timestamps = liveData.timestamps || [];
-        const temp = liveData.temperature || [];
-        const vibration = liveData.vibration_rms || [];
-        const current = liveData.current || [];
-
-        // Map to cycles (indices)
-        const cycles = timestamps.map((_, i) => i);
-
-        // Update chart
-        chart.data.labels = cycles;
-        chart.data.datasets[0].data = temp.map((val, i) => val);
-        chart.data.datasets[1].data = vibration.map((val, i) => val * 1000);  // Scale for visibility
-        chart.data.datasets[2].data = current.map((val, i) => val * 100);  // Scale for visibility
-
-        chart.update('none');
     }
 
     // ============================================================================
     // LIVE SENSOR DISPLAY UPDATES
+    // Only measured values are shown. Without a fresh reading the cards show "--".
     // ============================================================================
 
+    const LIVE_FIELDS = [
+        { key: 'temperature', id: 'liveTempValue', digits: 1, dot: 'liveTempDot', status: 'liveTempStatus' },
+        { key: 'vibration_rms', id: 'liveVibrationValue', digits: 3, dot: 'liveVibrationDot', status: 'liveVibrationStatus' },
+        { key: 'current', id: 'liveCurrentValue', digits: 3, dot: 'liveCurrentDot', status: 'liveCurrentStatus' },
+        { key: 'bus_voltage', id: 'liveBusVoltageValue', digits: 2, dot: 'liveBusVoltageDot', status: 'liveBusVoltageStatus' },
+    ];
+
     function updateLiveSensorDisplays(data) {
-        const sensors = data.sensors;
-        const thresholds = data.thresholds;
+        const noData = document.getElementById('liveNoData');
+        const lastReading = document.getElementById('liveLastReading');
 
-        // Temperature
-        const temp = sensors.temperature;
-        document.getElementById('liveTempValue').textContent = temp.toFixed(1);
-
-        const tempDot = document.getElementById('liveTempDot');
-        const tempStatus = document.getElementById('liveTempStatus');
-
-        if (temp > thresholds.temperature_max) {
-            tempDot.className = 'live-status-dot critical';
-            tempStatus.textContent = `CRITICAL (>${thresholds.temperature_max}°C)`;
-            tempStatus.style.color = 'var(--status-critical)';
-        } else if (temp > thresholds.temperature_max * 0.9) {
-            tempDot.className = 'live-status-dot warning';
-            tempStatus.textContent = 'Warning - Elevated';
-            tempStatus.style.color = 'var(--status-caution)';
-        } else {
-            tempDot.className = 'live-status-dot';
-            tempStatus.textContent = 'Normal';
-            tempStatus.style.color = 'var(--foreground)';
+        if (data.status !== 'ok') {
+            if (noData) noData.classList.remove('hidden');
+            if (lastReading) {
+                lastReading.textContent = data.last_timestamp
+                    ? `Last reading: ${new Date(data.last_timestamp).toLocaleString()}`
+                    : 'No reading has been stored yet.';
+            }
+            LIVE_FIELDS.forEach(f => {
+                const value = document.getElementById(f.id);
+                value.textContent = '--';
+                value.parentElement.classList.add('no-data');
+                document.getElementById(f.dot).className = 'live-status-dot critical';
+                document.getElementById(f.status).textContent = 'No data received';
+            });
+            return;
         }
 
-        // Vibration
-        const vib = sensors.vibration_rms || 0;
-        document.getElementById('liveVibrationValue').textContent = vib.toFixed(3);
+        if (noData) noData.classList.add('hidden');
+        const measuredAt = new Date(data.timestamp).toLocaleTimeString();
 
-        const vibDot = document.getElementById('liveVibrationDot');
-        const vibStatus = document.getElementById('liveVibrationStatus');
-
-        if (vib > thresholds.vibration_max) {
-            vibDot.className = 'live-status-dot critical';
-            vibStatus.textContent = `CRITICAL (>${thresholds.vibration_max}g)`;
-            vibStatus.style.color = 'var(--status-critical)';
-        } else if (vib > thresholds.vibration_max * 0.8) {
-            vibDot.className = 'live-status-dot warning';
-            vibStatus.textContent = 'Warning - Elevated';
-            vibStatus.style.color = 'var(--status-caution)';
-        } else {
-            vibDot.className = 'live-status-dot';
-            vibStatus.textContent = 'Normal';
-            vibStatus.style.color = 'var(--foreground)';
-        }
-
-        // Current
-        const current = sensors.current;
-        document.getElementById('liveCurrentValue').textContent = current.toFixed(2);
-
-        const currentDot = document.getElementById('liveCurrentDot');
-        const currentStatus = document.getElementById('liveCurrentStatus');
-
-        if (current > thresholds.current_max) {
-            currentDot.className = 'live-status-dot critical';
-            currentStatus.textContent = `CRITICAL (>${thresholds.current_max}A)`;
-            currentStatus.style.color = 'var(--status-critical)';
-        } else if (current > thresholds.current_max * 0.8) {
-            currentDot.className = 'live-status-dot warning';
-            currentStatus.textContent = 'Warning - Elevated';
-            currentStatus.style.color = 'var(--status-caution)';
-        } else {
-            currentDot.className = 'live-status-dot';
-            currentStatus.textContent = 'Normal';
-            currentStatus.style.color = 'var(--foreground)';
-        }
+        LIVE_FIELDS.forEach(f => {
+            const raw = data.reading[f.key];
+            const value = document.getElementById(f.id);
+            value.textContent = (raw === null || raw === undefined) ? '--' : raw.toFixed(f.digits);
+            value.parentElement.classList.remove('no-data');
+            document.getElementById(f.dot).className = 'live-status-dot';
+            document.getElementById(f.status).textContent = `Measured ${measuredAt} (${data.age_seconds}s ago)`;
+        });
     }
 
     // STATE MANAGEMENT
@@ -2074,13 +2044,16 @@
     }
 
     function updateHeader() {
-        const headerEquipmentType = document.getElementById('headerEquipmentType');
-        const headerEquipmentId = document.getElementById('headerEquipmentId');
-        const headerLocation = document.getElementById('headerLocation');
+        const headerTitle = document.getElementById('headerTitle');
+        const headerSubtitle = document.getElementById('headerSubtitle');
 
-        if (headerEquipmentType) headerEquipmentType.textContent = state.equipmentType;
-        if (headerEquipmentId) headerEquipmentId.textContent = state.equipmentId;
-        if (headerLocation) headerLocation.textContent = state.location;
+        if (state.isLiveMode) {
+            if (headerTitle) headerTitle.textContent = `Motor testbed ${LIVE_EQUIPMENT_ID}`;
+            if (headerSubtitle) headerSubtitle.textContent = 'Live sensors (Raspberry Pi)';
+        } else {
+            if (headerTitle) headerTitle.textContent = `Simulated equipment ${state.equipmentId}`;
+            if (headerSubtitle) headerSubtitle.textContent = 'Simulated data';
+        }
     }
 
     // API CALLS
@@ -2105,9 +2078,7 @@
 
             // Prepare form data
             const formData = new FormData();
-            formData.append('equipment_type', state.equipmentType);
             formData.append('equipment_id', state.equipmentId);
-            formData.append('location', state.location);
             formData.append('data_source', state.dataSource);
 
             // Make API call

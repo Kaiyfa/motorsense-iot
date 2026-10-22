@@ -18,6 +18,10 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+# Shared secret the Raspberry Pi sends as 'Authorization: Bearer <token>' to /api/ingest/.
+# No default: the app refuses to start without it.
+INGEST_TOKEN = config('INGEST_TOKEN')
+
 # Application definition
 INSTALLED_APPS = [
     # Django apps

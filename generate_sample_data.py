@@ -87,13 +87,13 @@ def generate_sample_data():
     
     equipment_ids = ['EQ-001', 'EQ-002', 'EQ-003', 'EQ-006']
     
-    # Delete existing data
-    existing_count = SensorData.objects.count()
+    # Delete existing sample data (real Pi readings are never touched)
+    existing_count = SensorData.objects.filter(source="sample").count()
     if existing_count > 0:
-        response = input(f"⚠️  Delete {existing_count:,} existing records? (y/N): ")
+        response = input(f"⚠️  Delete {existing_count:,} existing sample records? (y/N): ")
         if response.lower() == 'y':
-            SensorData.objects.all().delete()
-            print(f"✅ Deleted {existing_count:,} records\n")
+            SensorData.objects.filter(source="sample").delete()
+            print(f"✅ Deleted {existing_count:,} sample records\n")
         else:
             print("❌ Aborted - keeping existing data")
             return
@@ -130,6 +130,7 @@ def generate_sample_data():
                 vibration_peak=np.random.normal(0.9, 0.15) * degradation * day_factor,
                 temperature=np.random.normal(45.0 + (90 - days_elapsed) * 0.1, 5.0),
                 current=np.random.normal(5.2, 0.5) * degradation * day_factor,
+                source="sample",
             ))
             
             point_count += 1

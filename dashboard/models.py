@@ -52,20 +52,32 @@ class SensorData(models.Model):
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='sensor_data')
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     
-    # Vibration data
-    vibration_x = models.FloatField(help_text="Vibration X-axis (g)")
-    vibration_y = models.FloatField(help_text="Vibration Y-axis (g)")
-    vibration_z = models.FloatField(help_text="Vibration Z-axis (g)")
+    SOURCE_CHOICES = [
+        ('pi', 'Raspberry Pi'),
+        ('sample', 'Sample (synthetic)'),
+    ]
+
+    # Vibration data (per-axis values are not sent by the Pi, so they may be empty)
+    vibration_x = models.FloatField(null=True, blank=True, help_text="Vibration X-axis (g)")
+    vibration_y = models.FloatField(null=True, blank=True, help_text="Vibration Y-axis (g)")
+    vibration_z = models.FloatField(null=True, blank=True, help_text="Vibration Z-axis (g)")
     
     # Temperature data
     temperature = models.FloatField(help_text="Temperature (°C)")
     
     # Current data
-    current = models.FloatField(help_text="Current (A)")
+    current = models.FloatField(help_text="Motor current in amperes (A), not milliamperes")
+    
+    # Supply voltage
+    bus_voltage = models.FloatField(null=True, blank=True, help_text="Bus voltage (V)")
     
     # Calculated features
     vibration_rms = models.FloatField(null=True, blank=True, help_text="Root Mean Square of vibration")
     vibration_peak = models.FloatField(null=True, blank=True, help_text="Peak vibration value")
+    
+    # Provenance
+    run_label = models.CharField(max_length=64, blank=True, help_text="Name of the recording session")
+    source = models.CharField(max_length=16, choices=SOURCE_CHOICES, default='pi')
     
     class Meta:
         db_table = 'sensor_data'
@@ -267,3 +279,83 @@ class PredictionHistory(models.Model):
     
     def __str__(self):
         return f"{self.equipment.equipment_id} - RUL: {self.rul} - {self.timestamp}"
+
+class AnomalyScore(models.Model):
+    """
+    One scored (or deliberately unscored) second from the live scorer or a replay.
+    Written only by the score_live and replay_session commands.
+    """
+    MODE_CHOICES = [
+        ('live', 'Live'),
+        ('replay', 'Replay of a recorded session'),
+    ]
+    MACHINE_STATE_CHOICES = [
+        ('idle', 'Idle'),
+        ('warming_up', 'Warming up'),
+        ('running', 'Running'),
+    ]
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='anomaly_scores')
+    timestamp = models.DateTimeField(help_text="Timestamp of the sensor reading that was scored")
+    run_label = models.CharField(max_length=64, blank=True)
+    score = models.FloatField(null=True, blank=True, help_text="Reconstruction error; empty when not scored")
+    threshold = models.FloatField()
+    above_threshold = models.BooleanField(null=True, blank=True, help_text="Empty when not scored")
+    alert_active = models.BooleanField(default=False)
+    machine_state = models.CharField(max_length=16, choices=MACHINE_STATE_CHOICES)
+    mode = models.CharField(max_length=8, choices=MODE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'anomaly_scores'
+        ordering = ['-timestamp']
+        constraints = [
+            models.UniqueConstraint(fields=['equipment', 'timestamp', 'mode'], name='uniq_anomaly_score_second'),
+        ]
+        indexes = [
+            models.Index(fields=['mode', 'equipment', '-timestamp']),
+            models.Index(fields=['mode', 'run_label']),
+        ]
+
+    def __str__(self):
+        return f"{self.mode} {self.equipment_id} {self.timestamp} {self.machine_state} {self.score}"
+
+
+class AlertEpisode(models.Model):
+    """An alert from firing (10 s above threshold) until the first second not above it."""
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='alert_episodes')
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True, help_text="Empty while the alert is active")
+    peak_score = models.FloatField()
+    run_label = models.CharField(max_length=64, blank=True)
+    mode = models.CharField(max_length=8, choices=AnomalyScore.MODE_CHOICES)
+    open_at_end_of_recording = models.BooleanField(
+        default=False,
+        help_text="Replay only: the alert was still active at the last reading of the recording, "
+                  "so ended_at is the end of the data, not the end of the alert",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'alert_episodes'
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['mode', 'equipment', '-started_at']),
+            models.Index(fields=['mode', 'run_label']),
+        ]
+
+    def __str__(self):
+        return f"{self.mode} {self.equipment_id} {self.started_at} - {self.ended_at or 'active'}"
+
+
+class ScorerHeartbeat(models.Model):
+    """Last poll of the live scorer per equipment, so the API can tell whether it is running."""
+    equipment = models.OneToOneField(Equipment, on_delete=models.CASCADE, related_name='scorer_heartbeat')
+    last_poll_at = models.DateTimeField()
+    last_scored_reading_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'scorer_heartbeats'
+
+    def __str__(self):
+        return f"{self.equipment_id} polled {self.last_poll_at}"
