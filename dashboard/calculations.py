@@ -262,3 +262,41 @@ def score_path(scores, threshold, width, height, pad=4):
         d.append(f"{'L' if pen else 'M'}{x},{y(s)}")
         pen = True
     return {'path': ''.join(d), 'threshold_y': y(threshold), 'lo': lo, 'hi': hi}
+
+
+# --------------------------------------------------------------------------- negative findings
+
+FINDING_SIGNALS = ['vib_rms_g', 'vib_peak_g', 'current_ma']
+FINDING_BANDS = [('band_1_6_g', '1–6 Hz'), ('band_6_20_g', '6–20 Hz'), ('band_20_50_g', '20–50 Hz'),
+                 ('band_50_100_g', '50–100 Hz')]
+
+
+def _pct(value):
+    return 'n/a' if value is None else f'{value:+.1f} %'
+
+
+def finding_cells(change):
+    """
+    Display cells for one row of a negative-findings table, from results/negative_findings.json:
+    vib_rms_g, vib_peak_g, current, bands. Values the script left out (for example a run
+    shorter than the warm-up) read "n/a, <reason>"; bands that were not recorded read "—".
+    """
+    percent = change['percent']
+    skipped = set(change.get('not_compared', []))
+    reason = change.get('not_compared_reason')
+
+    def cell(name, label):
+        if name in skipped:
+            return {'label': label, 'text': f'n/a, {reason}', 'missing': True, 'numeric': True}
+        return {'label': label, 'text': _pct(percent.get(name)), 'missing': percent.get(name) is None,
+                'numeric': True}
+
+    cells = [cell(name, label) for name, label in zip(FINDING_SIGNALS, ['vib_rms_g', 'vib_peak_g', 'current'])]
+    bands = {'label': 'Frequency bands', 'numeric': False}
+    if any(band in skipped for band, _ in FINDING_BANDS):
+        bands.update(text=f'n/a, {reason}', missing=True)
+    elif all(percent.get(band) is not None for band, _ in FINDING_BANDS):
+        bands.update(text=', '.join(f'{title} {_pct(percent[band])}' for band, title in FINDING_BANDS), missing=False)
+    else:
+        bands.update(text='—', missing=True)
+    return cells + [bands]

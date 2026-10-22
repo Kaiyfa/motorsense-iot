@@ -143,15 +143,65 @@ class NegativeFindingsJsonTests(unittest.TestCase):
 
     def test_comparison_record_matches_the_printed_numbers(self):
         def rows(n, rms, cur):
-            return [{'timestamp_utc': f'2026-01-01T00:00:{i:02d}', 'vib_rms_g': rms, 'vib_peak_g': 0.3,
-                     'current_ma': cur, **{b: None for b in self.nf.BANDS}} for i in range(n)]
-        sessions = {'ref': rows(100, 0.10, 800.0), 'test': rows(100, 0.11, 800.0)}
+            return [{'timestamp_utc': f'2026-01-01T00:{i // 60:02d}:{i % 60:02d}', 'vib_rms_g': rms,
+                     'vib_peak_g': 0.3, 'current_ma': cur, **{b: None for b in self.nf.BANDS}} for i in range(n)]
+        sessions = {'ref': rows(200, 0.10, 800.0), 'test': rows(200, 0.11, 800.0)}
         with mock.patch('sys.stdout', new_callable=io.StringIO) as out:
             record = self.nf.run_comparison('T', ['ref'], ['test', 'missing'], None, sessions)
         self.assertIn('vib_rms_g +10.0%', out.getvalue())
         self.assertEqual(record['missing'], ['missing'])
         self.assertEqual(record['changes'][0]['percent']['vib_rms_g'], 10.0)
         self.assertEqual([s['windows'] for s in record['sessions']], [90, 90])
+
+    def test_runs_shorter_than_the_warm_up_report_only_current(self):
+        from dashboard.ml.constants import WARMUP_SECONDS
+        self.assertEqual(self.nf.WARMUP_WINDOWS, WARMUP_SECONDS)
+
+        def rows(n, rms, cur):
+            return [{'timestamp_utc': f'2026-01-01T00:{i // 60:02d}:{i % 60:02d}', 'vib_rms_g': rms,
+                     'vib_peak_g': 0.3, 'current_ma': cur, **{b: 0.05 for b in self.nf.BANDS}} for i in range(n)]
+        sessions = {'ref': rows(240, 0.10, 800.0), 'short': rows(60, 0.08, 816.0), 'long': rows(180, 0.11, 800.0)}
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as out:
+            record = self.nf.run_comparison('T', ['ref'], ['short', 'long'], None, sessions)
+        short, long_ = record['changes']
+        self.assertEqual(short['percent'], {'vib_rms_g': None, 'vib_peak_g': None, 'current_ma': 2.0})
+        self.assertEqual(short['not_compared'], ['vib_rms_g', 'vib_peak_g'] + self.nf.BANDS)
+        self.assertEqual(short['not_compared_reason'], 'run shorter than the warm-up')
+        self.assertEqual(short['shorter_than_warmup'], ['short'])
+        self.assertNotIn('not_compared', long_)                      # 180 windows: not shorter than the warm-up
+        self.assertEqual(long_['percent']['vib_rms_g'], 10.0)
+        by_label = {s['label']: s for s in record['sessions']}
+        self.assertIsNone(by_label['short']['vib_rms_g']['mean'])
+        self.assertIsNone(by_label['short']['bands'])
+        self.assertEqual(by_label['short']['current_ma']['mean'], 816.0)
+        self.assertTrue(by_label['short']['shorter_than_warmup'])
+        self.assertIn('short vs ref: current_ma +2.0%; vibration and bands n/a', out.getvalue())
+
+        cells = calc.finding_cells(short)
+        self.assertEqual([c['text'] for c in cells], ['n/a, run shorter than the warm-up'] * 2
+                         + ['+2.0 %', 'n/a, run shorter than the warm-up'])
+
+    def test_committed_json_leaves_out_vibration_only_for_the_short_friction_runs(self):
+        data = json.loads((REPO / 'results' / 'negative_findings.json').read_text())
+        short = {s['label'] for c in data['comparisons'] for s in c['sessions'] if s['shorter_than_warmup']}
+        self.assertEqual(short, {'r4_tune', 'r4_tune2'})
+        for c in data['comparisons']:
+            for ch in c['changes']:
+                if {ch['test'], ch['reference']} & short:
+                    self.assertIsNone(ch['percent']['vib_rms_g'])
+                    self.assertIsNotNone(ch['percent']['current_ma'])
+                else:
+                    self.assertNotIn('not_compared', ch)
+                    self.assertIsNotNone(ch['percent']['vib_rms_g'])
+
+    def test_finding_cells(self):
+        cells = calc.finding_cells({'percent': {'vib_rms_g': 13.1, 'vib_peak_g': 11.0, 'current_ma': -14.6,
+                                                'band_1_6_g': -5.3, 'band_6_20_g': -29.4, 'band_20_50_g': -6.2,
+                                                'band_50_100_g': 26.6}})
+        self.assertEqual([c['text'] for c in cells],
+                         ['+13.1 %', '+11.0 %', '-14.6 %', '1–6 Hz -5.3 %, 6–20 Hz -29.4 %, 20–50 Hz -6.2 %, 50–100 Hz +26.6 %'])
+        cells = calc.finding_cells({'percent': {'vib_rms_g': 1.0, 'vib_peak_g': 2.0, 'current_ma': 0.0}})
+        self.assertEqual(cells[-1]['text'], '—')
 
     def test_committed_json_has_every_comparison(self):
         data = json.loads((REPO / 'results' / 'negative_findings.json').read_text())
@@ -358,6 +408,9 @@ class EvaluationAndSetupViewTests(TabTestCase):
         self.assertIn('r4_test_drag', html)
         self.assertNotIn('ccuracy', html)
         self.assertEqual(html.count('Recorded, not live'), 5)
+        # the friction runs are shorter than the warm-up: 4 rows x 2 vibration cells, and the band cell of
+        # the 2 rows whose reference has frequency bands
+        self.assertEqual(html.count('n/a, run shorter than the warm-up'), 10)
 
     def test_evaluation_without_result_files(self):
         with mock.patch('dashboard.views_tabs.RESULTS_DIR', Path('/nonexistent')):

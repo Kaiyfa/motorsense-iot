@@ -244,14 +244,16 @@ Vibration RMS rose by 4.4 %, vibration peak by 7.6 % and current by 1.2 %.
 
 ### Friction by hand
 
-Only seconds with current above 500 mA.
+Only seconds with current above 500 mA. r4_tune and r4_tune2 are 60 s runs, shorter than the
+180 s warm-up, so they are compared on current only: their vibration would come from the
+warm-up and be set against plateau values.
 
 | Session | Role | Windows | current_ma | current min to max | vib_rms_g |
 |---|---|---|---|---|---|
 | r3_normal_01 | reference | 540 | 815.5 ± 4.6 | 805 to 854 | 0.1193 ± 0.0057 |
 | r4_band_normal_a | reference | 90 | 823.3 ± 2.5 | 816 to 829 | 0.1452 ± 0.0100 |
-| r4_tune | friction | 59 | 831.0 ± 4.0 | 822 to 841 | 0.1090 ± 0.0277 |
-| r4_tune2 | friction | 57 | 829.2 ± 3.2 | 819 to 835 | 0.1047 ± 0.0284 |
+| r4_tune | friction | 59 | 831.0 ± 4.0 | 822 to 841 | n/a, run shorter than the warm-up |
+| r4_tune2 | friction | 57 | 829.2 ± 3.2 | 819 to 835 | n/a, run shorter than the warm-up |
 
 Current was 0.7 % to 1.9 % higher than in the references (r4_tune +1.9 % and +0.9 %,
 r4_tune2 +1.7 % and +0.7 % against r3_normal_01 and r4_band_normal_a). The two normal

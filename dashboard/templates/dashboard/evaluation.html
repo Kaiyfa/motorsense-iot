@@ -76,37 +76,26 @@
     {% if not findings_available %}
       <p class="notice">results/negative_findings.json was not found. Run <code>python analysis/negative_findings.py &lt;raw data directory&gt;</code>.</p>
     {% else %}
-      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.</p>
+      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.short_runs %} Runs shorter than the warm-up: {{ findings_meta.short_runs }}.{% endif %}</p>
       {% for c in findings %}
         <h3 class="findings-title">{{ c.title }}</h3>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th scope="col">Test session</th><th scope="col">Reference session</th><th scope="col" class="num-col">vib_rms_g</th><th scope="col" class="num-col">vib_peak_g</th><th scope="col" class="num-col">current</th><th scope="col">Frequency bands</th></tr></thead>
             <tbody>
-              {% for ch in c.changes %}
-                <tr>
-                  <td class="mono" data-label="Test session">{{ ch.test }}</td>
-                  <td class="mono" data-label="Reference session">{{ ch.reference }}</td>
-                  <td class="num num-col" data-label="vib_rms_g">{{ ch.percent.vib_rms_g|stringformat:"+.1f" }} %</td>
-                  <td class="num num-col" data-label="vib_peak_g">{{ ch.percent.vib_peak_g|stringformat:"+.1f" }} %</td>
-                  <td class="num num-col" data-label="current">{{ ch.percent.current_ma|stringformat:"+.1f" }} %</td>
-                  <td class="num" data-label="Frequency bands">{% if ch.percent.band_1_6_g is not None %}1–6 Hz {{ ch.percent.band_1_6_g|stringformat:"+.1f" }} %, 6–20 Hz {{ ch.percent.band_6_20_g|stringformat:"+.1f" }} %, 20–50 Hz {{ ch.percent.band_20_50_g|stringformat:"+.1f" }} %, 50–100 Hz {{ ch.percent.band_50_100_g|stringformat:"+.1f" }} %{% else %}—{% endif %}</td>
-                </tr>
-              {% endfor %}
-              {% for ch in c.reference_changes %}
-                <tr class="reference-row">
-                  <td class="mono" data-label="Test session">{{ ch.test }} <span class="cell-note">reference, no fault applied</span></td>
-                  <td class="mono" data-label="Reference session">{{ ch.reference }}</td>
-                  <td class="num num-col" data-label="vib_rms_g">{{ ch.percent.vib_rms_g|stringformat:"+.1f" }} %</td>
-                  <td class="num num-col" data-label="vib_peak_g">{{ ch.percent.vib_peak_g|stringformat:"+.1f" }} %</td>
-                  <td class="num num-col" data-label="current">{{ ch.percent.current_ma|stringformat:"+.1f" }} %</td>
-                  <td data-label="Frequency bands">—</td>
+              {% for row in c.rows %}
+                <tr{% if row.is_reference %} class="reference-row"{% endif %}>
+                  <td class="mono" data-label="Test session"><div>{{ row.test }}{% if row.is_reference %} <span class="cell-note">reference, no fault applied</span>{% endif %}</div></td>
+                  <td class="mono" data-label="Reference session"><div>{{ row.reference }}</div></td>
+                  {% for cell in row.cells %}
+                    <td class="{% if cell.numeric %}num num-col{% endif %}{% if cell.missing %} muted{% endif %}" data-label="{{ cell.label }}"><div>{{ cell.text }}</div></td>
+                  {% endfor %}
                 </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        <p class="cell-note">Windows per session: {% for s in c.sessions %}<span class="mono">{{ s.label }}</span> {{ s.windows }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+        <p class="cell-note">Windows per session: {% for s in c.sessions %}<span class="mono">{{ s.label }}</span> {{ s.windows }}{% if s.shorter_than_warmup %} (the whole run is {{ s.run_windows }} windows, shorter than the warm-up){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
       {% endfor %}
     {% endif %}
   </section>

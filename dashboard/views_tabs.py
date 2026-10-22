@@ -453,8 +453,16 @@ def evaluation_page(request):
             'test_seconds': metrics['settings']['sessions']['r5_normal_05']['scored_seconds'],
         })
     if findings:
-        context['findings'] = findings['comparisons']
-        context['findings_meta'] = {k: findings[k] for k in ('script', 'plateau_rule', 'std', 'percent')}
+        context['findings'] = [{
+            **c,
+            'rows': ([{'test': ch['test'], 'reference': ch['reference'], 'is_reference': False,
+                       'cells': calc.finding_cells(ch)} for ch in c['changes']]
+                     + [{'test': ch['test'], 'reference': ch['reference'], 'is_reference': True,
+                         'cells': calc.finding_cells(ch)}
+                        for ch in c['reference_changes']]),
+        } for c in findings['comparisons']]
+        context['findings_meta'] = {k: findings.get(k) for k in ('script', 'plateau_rule', 'std', 'percent',
+                                                                  'short_runs')}
     return render(request, 'dashboard/evaluation.html', _page(request, 'evaluation', context))
 
 
