@@ -29,7 +29,7 @@ were stored in it.
 | File | What it shows |
 |---|---|
 | `live_idle_1440.png`, `live_idle_390.png` | Live, state Idle: current at or below 0.5 A, not scored. The state strip shows Offline then Idle; with nothing to score, the chart area shows the same segments and the sentence "Idle: current at or below 0.5 A, so nothing is scored…". "What changed" is dimmed and marked "Not running". Fed from `labeltest_01_warmup`. |
-| `live_warming_1440.png`, `live_warming_390.png` | Live, state Warming up: progress ring (111 and 113 of 180 s), strip Offline, Idle, Warm-up, chart area explaining that scoring starts after warm-up, "What changed" marked "Not running". Fed from `r5_normal_05_warmup`. |
+| `live_warming_1440.png`, `live_warming_390.png` | Live, state Warming up: progress ring (107 of 180 s at 1440 px, 113 at 390 px), strip Offline, Idle, Warm-up, chart area explaining that scoring starts after warm-up, "What changed" marked "Not running". Fed from `r5_normal_05_warmup`. |
 | `live_running_1440.png`, `live_running_390.png` | Live, state Normal: running for about 8 minutes, strip Normal, the last 5 minutes of scores (about 0.6 to 2, below the threshold 2.95), no alert. Fed from `r5_normal_05`. |
 | `live_offline_1440.png`, `live_offline_390.png` | Live, state Offline: the feeder had stopped about 31 to 37 s before the capture; the scorer was still running. The strip ends with an Offline segment, "What changed" is marked "Offline", and the tiles show the last values dimmed with "Last reading … ago". |
 
