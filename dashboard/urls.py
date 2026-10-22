@@ -1,7 +1,7 @@
 # dashboard/urls.py
 
 from django.urls import path
-from . import views
+from . import views, views_tabs
 
 app_name = 'dashboard'
 
@@ -9,7 +9,20 @@ urlpatterns = [
     # Pages
     path('', views.dashboard, name='dashboard'),                    # Overview, Live
     path('replay/', views.replay_overview, name='replay'),          # Overview, Replay
-    path('<slug:tab>/', views.tab_placeholder, name='tab'),         # Sensors, Alerts, ... (part 2)
+    path('sensors/', views_tabs.sensors_page, name='sensors'),
+    path('alerts/', views_tabs.alerts_page, name='alerts_page'),
+    path('maintenance/', views_tabs.maintenance_page, name='maintenance'),
+    path('maintenance/entries/', views_tabs.maintenance_add, name='maintenance_add'),
+    path('maintenance/entries/<int:entry_id>/delete/', views_tabs.maintenance_delete, name='maintenance_delete'),
+    path('maintenance/interval/', views_tabs.maintenance_interval, name='maintenance_interval'),
+    path('evaluation/', views_tabs.evaluation_page, name='evaluation'),
+    path('setup/', views_tabs.setup_page, name='setup'),
+
+    # API endpoints - tabs
+    path('api/sensors/', views_tabs.sensor_data, name='sensor_data'),
+    path('api/sensors.csv', views_tabs.sensor_csv, name='sensor_csv'),
+    path('api/alerts/table/', views_tabs.alert_table, name='alert_table'),
+    path('api/alerts/<int:episode_id>/', views_tabs.alert_detail, name='alert_detail'),
 
     # API endpoints - Live Sensors
     path('api/live/reading/', views.live_reading, name='live_reading'),

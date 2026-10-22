@@ -69,7 +69,6 @@ TABS = [
     ('evaluation', 'Evaluation'),
     ('setup', 'Setup'),
 ]
-PLACEHOLDER_TABS = {key: name for key, name in TABS if key != 'overview'}
 
 MODEL_FEATURES = [
     # model feature, display name, unit, digits
@@ -95,6 +94,16 @@ SENSOR_TILES = [
 ]
 
 
+TAB_URLS = {
+    'sensors': 'dashboard:sensors',
+    'alerts': 'dashboard:alerts_page',
+    'maintenance': 'dashboard:maintenance',
+    'evaluation': 'dashboard:evaluation',
+    'setup': 'dashboard:setup',
+}
+MODE_TABS = {'sensors', 'alerts'}   # tabs that show live or replayed data
+
+
 def _tabs(active, mode, replay_label=None):
     query = f'?mode=replay&session={replay_label}' if mode == 'replay' and replay_label else ''
     tabs = []
@@ -103,8 +112,8 @@ def _tabs(active, mode, replay_label=None):
             href = (reverse('dashboard:replay') + (f'?session={replay_label}' if replay_label else '')
                     if mode == 'replay' else reverse('dashboard:dashboard'))
         else:
-            href = reverse('dashboard:tab', args=[key]) + query
-        tabs.append({'key': key, 'name': name, 'href': href})
+            href = reverse(TAB_URLS[key]) + (query if key in MODE_TABS else '')
+        tabs.append({'key': key, 'name': name, 'href': href, 'carries_mode': key in MODE_TABS})
     return tabs
 
 
@@ -204,24 +213,6 @@ def replay_overview(request):
     })
     context.update({'session_groups': groups, 'replay_available': available})
     return render(request, 'dashboard/overview.html', context)
-
-
-@login_required(login_url='login')
-def tab_placeholder(request, tab):
-    """Sections that are built in part 2 of the dashboard rebuild."""
-    if tab not in PLACEHOLDER_TABS:
-        raise Http404('Unknown section')
-    replay_label = request.GET.get('session') if request.GET.get('mode') == 'replay' else None
-    if replay_label not in [s['label'] for s in catalog.REPLAY_SESSIONS]:
-        replay_label = None
-    mode = 'replay' if replay_label else 'live'
-    return render(request, 'dashboard/placeholder.html', {
-        'mode': mode,
-        'active_tab': tab,
-        'tabs': _tabs(tab, mode, replay_label),
-        'replay_label': replay_label,
-        'page_name': PLACEHOLDER_TABS[tab],
-    })
 
 
 # SENSOR INGEST (Raspberry Pi)
