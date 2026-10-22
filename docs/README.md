@@ -42,8 +42,16 @@ comparison and alert rule), and the shared settings live in one place,
 | Command | What it does |
 |---|---|
 | `python manage.py migrate` | Creates the `anomaly_scores`, `alert_episodes` and `scorer_heartbeats` tables |
-| `python manage.py score_live [--equipment EQ-001] [--interval 1]` | Polls new `source = pi` readings every second, scores them and records alerts (mode `live`). After a restart it resumes after the last scored reading |
+| `python manage.py score_live [--equipment EQ-001] [--interval 1]` | Polls new `source = pi` readings every second, scores them and records alerts (mode `live`). On its very first start (no live scores yet) it begins at the newest reading and ignores everything older, so stored recordings are never scored as live. After a restart it resumes after the last scored reading |
 | `python manage.py replay_session --label r5_fault_open_01 [--label ...]` | Runs a stored session, including its `_warmup` rows, through the same code path and stores the results with mode `replay`, the original timestamps and labels. Running it again replaces the earlier replay of that session |
+
+The saved model is loaded with `compile=False` (inference only). Keras 2.13 on Apple
+silicon cannot restore the legacy Adam optimizer the model was trained with; the scorer
+needs no optimizer, and the weights and architecture are the same either way.
+
+The web server does not load TensorFlow: the views read only the database, and the old
+simulated-mode model (`dashboard/ml/ml_service.py`) is imported only when
+`/api/prediction/` is called.
 
 ### Machine state
 
@@ -64,7 +72,9 @@ alert but does not restart the warm-up.
 
 The alert rule is the evaluation's: an alert fires on the 10th consecutive second above
 the threshold and stays active while the score stays above it. Each alert is stored as an
-episode with its start, end (empty while active) and peak score.
+episode with its start, end (empty while active) and peak score. In a replay, an alert that
+is still active at the last reading of the recording is closed there and flagged
+`open_at_end_of_recording`; its end is the end of the data, not the end of the alert.
 
 ### Replay against the evaluation
 
@@ -75,13 +85,25 @@ were never posted). A replay therefore scores fewer seconds than the evaluation 
 first alert comes the same number of rows later. For every second scored by both, the
 replayed score equals the evaluation's score to float32 precision.
 
+To rerun the comparison (needs `data/dataset/` from `export_dataset` and
+`results/scores/` from `run_evaluation`):
+
+```
+python manage.py replay_session --label r5_normal_04_redo --label r5_normal_05 \
+    --label r5_fault_open_01 --label r5_fault_open_02 --label r5_fault_open_03
+python analysis/compare_replay_scores.py          # scores of every second scored by both
+python analysis/compare_replay_to_evaluation.py   # side by side with results/metrics.json, seed 0
+```
+
+Both scripts exit with code 1 on a mismatch.
+
 ### API (login required, JSON)
 
 | Endpoint | Content |
 |---|---|
 | `/api/live/status/?equipment_id=EQ-001` | Machine state, latest score and threshold, whether an alert is active, seconds since the last reading, and whether the scorer is alive (polled within the last 10 s) |
 | `/api/live/scores/?minutes=N` | Live scores of the last N minutes (default 10, at most 1440) |
-| `/api/alerts/?mode=live` | Alert episodes; `mode` is `live` (default), `replay` or `all`; every episode carries its mode |
+| `/api/alerts/?mode=live` | Alert episodes; `mode` is `live` (default), `replay` or `all`; every episode carries its mode and the `open_at_end_of_recording` flag |
 | `/api/replay/<label>/` | Scores, threshold and alert periods of a replayed session |
 
 The live endpoints read mode `live` rows only, so a replay is never shown as live.
