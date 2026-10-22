@@ -256,12 +256,101 @@ def _count_word(n):
 # Titles in results/negative_findings.json (analysis/negative_findings.py, COMPARISONS)
 DRIFT_TITLE = 'Baseline shift after mechanical handling'
 DETECTED_FAULT_TITLE = 'Open motor lead'
-VIBRATION_SIGNALS = ['vib_rms_g', 'vib_peak_g']
+FAULT_NAMES = {
+    'Imbalance (taped weights)': 'imbalance',
+    'Imbalance, frequency bands': 'imbalance',
+    'Loosened motor mount': 'loosened mount',
+    'Friction by hand (only seconds with current above 500 mA)': 'friction',
+}
+SIGNAL_NAMES = {'vib_rms_g': 'RMS', 'vib_peak_g': 'peak', 'current_ma': 'current'}
 
 
-def _largest(changes, names):
-    values = [abs(ch['percent'][n]) for ch in changes for n in names if ch['percent'].get(n) is not None]
-    return max(values) if values else None
+def _join(items):
+    return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
+
+
+def _band_text(values):
+    lo, hi = min(values), max(values)
+    return f'the four frequency bands ({_pct(lo)} to {_pct(hi)})' if len(values) == 4 else \
+        f'{len(values)} frequency bands ({_pct(lo)} to {_pct(hi)})'
+
+
+def _run_verdict(change, spread):
+    """'above it in RMS (+16.8 %) and peak (+19.1 %)' etc. for the vibration and band values of one run."""
+    groups = {'above': [], 'within': []}
+    bands = {'above': [], 'within': []}
+    for name, value in change['percent'].items():
+        if value is None or name == 'current_ma' or not spread.get(name):
+            continue
+        verdict = 'above' if abs(value) > spread[name]['spread_percent'] else 'within'
+        if name in SIGNAL_NAMES:
+            groups[verdict].append(f'{SIGNAL_NAMES[name]} ({_pct(value)})')
+        else:
+            bands[verdict].append(value)
+    parts = []
+    for verdict in ('above', 'within'):
+        items = groups[verdict] + ([_band_text(bands[verdict])] if bands[verdict] else [])
+        if items:
+            parts.append(f'{verdict} it in {_join(items)}')
+    return ' and '.join(parts)
+
+
+SPREAD_COLUMNS = [('vib_rms_g', 'vib_rms_g', 4), ('vib_peak_g', 'vib_peak_g', 4), ('current_ma', 'current_ma', 1),
+                  ('band_1_6_g', '1–6 Hz', 4), ('band_6_20_g', '6–20 Hz', 4), ('band_20_50_g', '20–50 Hz', 4),
+                  ('band_50_100_g', '50–100 Hz', 4)]
+
+
+def spread_table(spread):
+    """The normal-spread table for the page: one row per session, then minimum, maximum and spread."""
+    if not spread or not spread.get('sessions'):
+        return None
+    summary = spread['summary']
+
+    def value(v, digits):
+        return '—' if v is None else f'{v:.{digits}f}'
+
+    rows = [{'label': r['label'], 'windows': r['windows'],
+             'cells': [value(r.get(key), digits) for key, _, digits in SPREAD_COLUMNS]} for r in spread['sessions']]
+    footer = []
+    for name, key in (('Minimum', 'min'), ('Maximum', 'max')):
+        footer.append({'label': name, 'cells': [value((summary.get(k) or {}).get(key), d)
+                                                for k, _, d in SPREAD_COLUMNS]})
+    footer.append({'label': 'Relative spread', 'cells': [
+        f"{summary[k]['spread_percent']:.1f} %" if summary.get(k) else '—' for k, _, _ in SPREAD_COLUMNS]})
+    return {'columns': [title for _, title, _ in SPREAD_COLUMNS], 'rows': rows, 'footer': footer,
+            'definition': spread['definition'], 'sessions': [r['label'] for r in spread['sessions']]}
+
+
+def spread_sentence(findings):
+    """
+    The third "What this shows" sentence: every like-for-like fault change set against the
+    spread between normal sessions, run by run, saying above or within as the numbers do.
+    """
+    spread = (findings.get('normal_spread') or {}).get('summary') or {}
+    if not all(spread.get(n) for n in SIGNAL_NAMES):
+        return None
+    runs, currents = [], []
+    for c in findings['comparisons']:
+        if c['title'] not in FAULT_NAMES:
+            continue
+        for ch in c['changes']:
+            verdict = _run_verdict(ch, spread)
+            if verdict:
+                runs.append(f"{ch['test']} ({FAULT_NAMES[c['title']]}) is {verdict}")
+            if ch['percent'].get('current_ma') is not None:
+                currents.append(ch['percent']['current_ma'])
+    if not runs and not currents:
+        return None
+    head = ('Compared like with like, against the spread between normal sessions (RMS '
+            f"{spread['vib_rms_g']['spread_percent']:.1f} %, peak {spread['vib_peak_g']['spread_percent']:.1f} %, "
+            f"current {spread['current_ma']['spread_percent']:.1f} %): ")
+    tail = []
+    if currents:
+        largest = max(abs(v) for v in currents)
+        where = 'within' if largest <= spread['current_ma']['spread_percent'] else 'above'
+        tail.append(f'current changed by at most {largest:.1f} % in the imbalance, loose-mount and friction runs, '
+                    f'{where} its spread')
+    return head + '; '.join(runs + tail) + '.'
 
 
 def what_this_shows(metrics, findings):
@@ -309,23 +398,9 @@ def what_this_shows(metrics, findings):
             out.append('Vibration alone does not detect this fault less often or later than current; '
                        'see the tables.')
     if findings:
-        comparisons = findings['comparisons']
-        drift = [ch for c in comparisons if c['title'] == DRIFT_TITLE for ch in c['changes']]
-        faults = [ch for c in comparisons if c['title'] not in (DRIFT_TITLE, DETECTED_FAULT_TITLE)
-                  for ch in c['changes']]
-        band_names = [band for band, _ in FINDING_BANDS]
-        largest_vib = _largest(faults, VIBRATION_SIGNALS + band_names)
-        largest_drift = _largest(drift, VIBRATION_SIGNALS)
-        largest_current = _largest(faults, ['current_ma'])
-        if None not in (largest_vib, largest_drift, largest_current) and largest_vib < largest_drift:
-            out.append(
-                'Imbalance, a loosened mount, friction and frequency bands were not detectable on this rig: no '
-                f'vibration or band value changed by more than {largest_vib:.1f} % against its reference, less '
-                f'than the {largest_drift:.1f} % shift between normal sessions after mechanical handling, and '
-                f'current changed by at most {largest_current:.1f} %.')
-        else:
-            out.append('The other faults tried on this rig are compared with their references in the negative '
-                       'findings below.')
+        sentence = spread_sentence(findings)
+        out.append(sentence or 'The other faults tried on this rig are compared with their references in the '
+                                'negative findings below.')
     return out
 
 
@@ -371,8 +446,8 @@ def _pct(value):
 def finding_cells(change):
     """
     Display cells for one row of a negative-findings table, from results/negative_findings.json:
-    vib_rms_g, vib_peak_g, current, bands. Values the script left out (for example a run
-    shorter than the warm-up) read "n/a, <reason>"; bands that were not recorded read "—".
+    vib_rms_g, vib_peak_g, current, bands. Values the script left out (for example runs
+    in different phases) read "n/a, <reason>"; bands that were not recorded read "—".
     """
     percent = change['percent']
     skipped = set(change.get('not_compared', []))

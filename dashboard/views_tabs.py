@@ -474,14 +474,12 @@ def evaluation_page(request):
     if findings:
         context['findings'] = [{
             **c,
-            'rows': ([{'test': ch['test'], 'reference': ch['reference'], 'is_reference': False,
-                       'cells': calc.finding_cells(ch)} for ch in c['changes']]
-                     + [{'test': ch['test'], 'reference': ch['reference'], 'is_reference': True,
-                         'cells': calc.finding_cells(ch)}
-                        for ch in c['reference_changes']]),
+            'rows': [{'test': ch['test'], 'reference': ch['reference'], 'cells': calc.finding_cells(ch),
+                      'detail': ch.get('not_compared_detail')} for ch in c['changes']],
         } for c in findings['comparisons']]
         context['findings_meta'] = {k: findings.get(k) for k in ('script', 'plateau_rule', 'std', 'percent',
-                                                                  'short_runs')}
+                                                                  'like_with_like')}
+        context['normal_spread'] = calc.spread_table(findings.get('normal_spread'))
     return render(request, 'dashboard/evaluation.html', _page(request, 'evaluation', context))
 
 

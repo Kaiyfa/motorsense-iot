@@ -13,10 +13,16 @@ Plateau rule, applied to every session:
     runs): the last 90 windows.
 Standard deviations are sample standard deviations (n - 1).
 
-Runs shorter than the warm-up (fewer than WARMUP_WINDOWS rows in total) lie
-entirely inside it, while the other sessions are compared at their plateau. For
-them only current is reported; vibration and band values are left out (null in
-the JSON, n/a in the printed output).
+Like with like: vibration and frequency bands are compared only between runs in the
+same phase, i.e. both measured after their warm-up segment, or both short runs of the
+same length (so the last 90 windows sit at the same time after the motors start).
+Otherwise the vibration and band cells are null ("n/a, runs not comparable"); current
+is always compared. Each comparison names why its reference was chosen.
+
+Normal spread: for the five valid normal sessions (r5_normal_01, 02, 03, 04_redo, 05;
+windows after the warm-up segment only), the mean of each signal per session and,
+across the sessions, the minimum, maximum and relative spread
+(maximum - minimum) / mean of the session means.
 """
 import argparse
 import csv
@@ -28,29 +34,40 @@ from pathlib import Path
 
 PLATEAU_WINDOWS = 90
 FRICTION_MIN_CURRENT_MA = 500.0
-# The warm-up in windows (1 window = 1 s). Same value as WARMUP_SECONDS in
-# dashboard/ml/constants.py (kept here so the script needs only the standard library;
-# a test checks that they agree).
-WARMUP_WINDOWS = 180
-SHORT_RUN_REASON = 'run shorter than the warm-up'
+NOT_COMPARABLE = 'runs not comparable'
 
 SIGNALS = ['vib_rms_g', 'vib_peak_g', 'current_ma']
 BANDS = ['band_1_6_g', 'band_6_20_g', 'band_20_50_g', 'band_50_100_g']
+VIBRATION = ['vib_rms_g', 'vib_peak_g'] + BANDS
 
-# (title, reference labels, test labels, minimum current in mA or None)
+NORMAL_SESSIONS = ['r5_normal_01', 'r5_normal_02', 'r5_normal_03', 'r5_normal_04_redo', 'r5_normal_05']
+
 COMPARISONS = [
-    ('Baseline shift after mechanical handling',
-     ['r2_normal_01'], ['r3_normal_01', 'r4_band_normal_a'], None),
-    ('Imbalance (taped weights)',
-     ['r4_test_drag', 'r4_band_normal_a'], ['r3_test_fault', 'r3_test_fault2'], None),
-    ('Imbalance, frequency bands',
-     ['r4_band_normal_a'], ['r4_band_fault_a'], None),
-    ('Loosened motor mount',
-     ['r3_normal_01'], ['r3_test_loose'], None),
-    ('Friction by hand (only seconds with current above 500 mA)',
-     ['r3_normal_01', 'r4_band_normal_a'], ['r4_tune', 'r4_tune2'], FRICTION_MIN_CURRENT_MA),
-    ('Open motor lead',
-     ['r4_band_normal_a'], ['r4_test_open'], None),
+    {'title': 'Baseline shift after mechanical handling',
+     'references': ['r2_normal_01'], 'tests': ['r3_normal_01', 'r4_band_normal_a'], 'min_current': None,
+     'reason': 'r2_normal_01 is the normal session recorded before the rig was handled; r3_normal_01 and '
+               'r4_band_normal_a are later normal runs with no fault applied. Vibration is compared only with '
+               'r3_normal_01, which is also measured after its warm-up segment; r4_band_normal_a is a 240 s run.'},
+    {'title': 'Imbalance (taped weights)',
+     'references': ['r2_test_baseline'], 'tests': ['r3_test_fault', 'r3_test_fault2'], 'min_current': None,
+     'reason': 'r2_test_baseline is the normal 180 s run recorded the same morning, before the imbalance runs: '
+               'same period and same run length, so the last 90 windows sit at the same time after the start.'},
+    {'title': 'Imbalance, frequency bands',
+     'references': ['r4_band_normal_a'], 'tests': ['r4_band_fault_a'], 'min_current': None,
+     'reason': 'r4_band_normal_a is the normal 240 s run with frequency bands recorded just before '
+               'r4_band_fault_a: same period and same run length.'},
+    {'title': 'Loosened motor mount',
+     'references': ['r2_test_baseline'], 'tests': ['r3_test_loose'], 'min_current': None,
+     'reason': 'r2_test_baseline is the normal 180 s run recorded the same morning, before the loose-mount run: '
+               'same period and same run length.'},
+    {'title': 'Friction by hand (only seconds with current above 500 mA)',
+     'references': ['r4_band_normal_a'], 'tests': ['r4_tune', 'r4_tune2'], 'min_current': FRICTION_MIN_CURRENT_MA,
+     'reason': 'r4_band_normal_a is the normal run of the same period. The friction runs are 60 s long and the '
+               'reference 240 s, so only current is compared.'},
+    {'title': 'Open motor lead',
+     'references': ['r4_band_normal_a'], 'tests': ['r4_test_open'], 'min_current': None,
+     'reason': 'r4_band_normal_a is the normal run of the same period. r4_test_open is a 180 s run and the '
+               'reference 240 s, so only current is compared.'},
 ]
 
 
@@ -98,6 +115,13 @@ def run_windows(label, sessions):
     return len(sessions[label]) + len(sessions.get(f'{label}_warmup', []))
 
 
+def phase(label, sessions):
+    """When the plateau windows were measured: after a warm-up segment, or at the end of a short run."""
+    if f'{label}_warmup' in sessions:
+        return 'after the warm-up segment'
+    return f'last {PLATEAU_WINDOWS} windows of a {run_windows(label, sessions)} s run'
+
+
 def plateau(label, sessions):
     rows = sessions[label]
     if f'{label}_warmup' in sessions:
@@ -105,11 +129,11 @@ def plateau(label, sessions):
     return rows[-PLATEAU_WINDOWS:], f'last {PLATEAU_WINDOWS} windows'
 
 
-def summarize(rows, current_only=False):
-    """Mean, std, min, max per signal; with current_only, every other signal is left empty."""
+def summarize(rows):
+    """Mean, std, min, max per signal."""
     summary = {'n': len(rows)}
     for name in SIGNALS + BANDS:
-        values = [r[name] for r in rows if r[name] is not None] if not current_only or name == 'current_ma' else []
+        values = [r[name] for r in rows if r[name] is not None]
         summary[name] = {
             'mean': statistics.fmean(values) if values else None,
             'std': statistics.stdev(values) if len(values) > 1 else None,
@@ -143,13 +167,15 @@ def rounded(stat, digits):
     return {k: (round(v, digits) if isinstance(v, float) else v) for k, v in stat.items()}
 
 
-def run_comparison(title, references, tests, min_current, sessions):
+def run_comparison(comparison, sessions):
     """Print one comparison and return the same numbers as a dict (for the JSON file)."""
+    title, references, tests = comparison['title'], comparison['references'], comparison['tests']
+    min_current = comparison['min_current']
     print(f'\n=== {title} ===')
-    record = {'title': title, 'references': references, 'tests': tests,
-              'min_current_ma': min_current, 'missing': [], 'sessions': [],
-              'changes': [], 'reference_changes': []}
-    summaries, short_runs, has_bands = {}, {}, {}
+    print(f"  Reference: {comparison['reason']}")
+    record = {'title': title, 'references': references, 'tests': tests, 'reference_reason': comparison['reason'],
+              'min_current_ma': min_current, 'missing': [], 'sessions': [], 'changes': []}
+    summaries, phases = {}, {}
     for label in references + tests:
         if label not in sessions:
             print(f'  MISSING: label {label!r} not found in the raw data, skipped')
@@ -162,32 +188,27 @@ def run_comparison(title, references, tests, min_current, sessions):
         if not rows:
             print(f'  {label}: no windows left after the plateau rule ({rule}), skipped')
             continue
-        short = run_windows(label, sessions) < WARMUP_WINDOWS
-        has_bands[label] = all(any(r[b] is not None for r in rows) for b in BANDS)
-        if short:
-            short_runs[label] = run_windows(label, sessions)
-            rule += f', run of {short_runs[label]} windows: {SHORT_RUN_REASON}, current only'
-        summaries[label] = (summarize(rows, current_only=short), rule, label in references)
+        phases[label] = phase(label, sessions)
+        summaries[label] = (summarize(rows), rule, label in references)
 
     if not summaries:
         return record
 
     print(f"  {'session':<18} {'role':<9} {'n':>3}  {'vib_rms_g':>17}  {'vib_peak_g':>17}  "
-          f"{'current_ma':>15}  {'current min..max':>16}  window rule")
+          f"{'current_ma':>15}  {'current min..max':>16}  window rule; phase")
     for label, (s, rule, is_ref) in summaries.items():
         cur = s['current_ma']
         span = f"{cur['min']:.0f}..{cur['max']:.0f}" if cur['min'] is not None else 'n/a'
         print(f"  {label:<18} {'reference' if is_ref else 'test':<9} {s['n']:>3}  "
               f"{fmt(s['vib_rms_g'], 4):>17}  {fmt(s['vib_peak_g'], 4):>17}  "
-              f"{fmt(cur, 1):>15}  {span:>16}  {rule}")
+              f"{fmt(cur, 1):>15}  {span:>16}  {rule}; {phases[label]}")
         record['sessions'].append({
             'label': label, 'role': 'reference' if is_ref else 'test', 'windows': s['n'], 'rule': rule,
+            'phase': phases[label], 'run_windows': run_windows(label, sessions),
             'vib_rms_g': rounded(s['vib_rms_g'], 4), 'vib_peak_g': rounded(s['vib_peak_g'], 4),
             'current_ma': rounded(cur, 1),
             'bands': ({b: round(s[b]['mean'], 4) for b in BANDS}
                       if all(s[b]['mean'] is not None for b in BANDS) else None),
-            'run_windows': run_windows(label, sessions),
-            'shorter_than_warmup': label in short_runs,
         })
 
     banded = [label for label, (s, _, _) in summaries.items()
@@ -197,12 +218,9 @@ def run_comparison(title, references, tests, min_current, sessions):
         for label in banded:
             s = summaries[label][0]
             print(f"  {label:<18} " + ' '.join(f"{s[b]['mean']:>9.4f}" for b in BANDS))
-    missing_bands = [label for label in summaries if label not in banded and label not in short_runs]
+    missing_bands = [label for label in summaries if label not in banded]
     if missing_bands:
         print(f"  No band columns: {', '.join(missing_bands)}")
-    if short_runs:
-        print(f"  Vibration and bands n/a ({SHORT_RUN_REASON}, {WARMUP_WINDOWS} windows): "
-              + ', '.join(f'{label} ({n} windows)' for label, n in short_runs.items()))
 
     ref_labels = [label for label, (_, _, is_ref) in summaries.items() if is_ref]
     test_labels = [label for label, (_, _, is_ref) in summaries.items() if not is_ref]
@@ -212,43 +230,60 @@ def run_comparison(title, references, tests, min_current, sessions):
             t = summaries[test][0]
             for ref in ref_labels:
                 r = summaries[ref][0]
-                short = [label for label in (test, ref) if label in short_runs]
-                if short:
+                both_banded = test in banded and ref in banded
+                names = SIGNALS + (BANDS if both_banded else [])
+                change = {'test': test, 'reference': ref,
+                          'percent': {n: pct_value(t[n]['mean'], r[n]['mean']) for n in names}}
+                if phases[test] != phases[ref]:
+                    skipped = [n for n in names if n in VIBRATION]
+                    change['percent'].update({n: None for n in skipped})
+                    change.update({'not_compared': skipped, 'not_compared_reason': NOT_COMPARABLE,
+                                   'not_compared_detail': f'{test}: {phases[test]}; {ref}: {phases[ref]}'})
                     print(f"    {test} vs {ref}: current_ma {pct(t['current_ma']['mean'], r['current_ma']['mean'])}; "
-                          f"vibration and bands n/a ({SHORT_RUN_REASON}: {', '.join(short)})")
-                    record['changes'].append({
-                        'test': test, 'reference': ref,
-                        'percent': {n: (pct_value(t[n]['mean'], r[n]['mean']) if n == 'current_ma' else None)
-                                    for n in SIGNALS},
-                        'not_compared': ([n for n in SIGNALS if n != 'current_ma']
-                                         + (BANDS if has_bands[test] and has_bands[ref] else [])),
-                        'not_compared_reason': SHORT_RUN_REASON,
-                        'shorter_than_warmup': short,
-                    })
-                    continue
-                parts = [f"{name} {pct(t[name]['mean'], r[name]['mean'])}" for name in SIGNALS]
-                if test in banded and ref in banded:
-                    parts += [f"{b} {pct(t[b]['mean'], r[b]['mean'])}" for b in BANDS]
-                print(f"    {test} vs {ref}: " + ', '.join(parts))
-                names = SIGNALS + (BANDS if test in banded and ref in banded else [])
-                record['changes'].append({'test': test, 'reference': ref,
-                                          'percent': {n: pct_value(t[n]['mean'], r[n]['mean']) for n in names}})
-
-    if len(ref_labels) > 1:
-        print('\n  Change between the references (no fault applied):')
-        for i, first in enumerate(ref_labels):
-            for second in ref_labels[i + 1:]:
-                a, b = summaries[first][0], summaries[second][0]
-                parts = [f"{name} {pct(b[name]['mean'], a[name]['mean'])}" for name in SIGNALS]
-                print(f"    {second} vs {first}: " + ', '.join(parts))
-                change = {'test': second, 'reference': first,
-                          'percent': {n: pct_value(b[n]['mean'], a[n]['mean']) for n in SIGNALS}}
-                short = [label for label in (second, first) if label in short_runs]
-                if short:
-                    change.update({'not_compared': [n for n in SIGNALS if n != 'current_ma'],
-                                   'not_compared_reason': SHORT_RUN_REASON, 'shorter_than_warmup': short})
-                record['reference_changes'].append(change)
+                          f"vibration{' and bands' if both_banded else ''} n/a ({NOT_COMPARABLE}: "
+                          f"{change['not_compared_detail']})")
+                else:
+                    parts = [f"{name} {pct(t[name]['mean'], r[name]['mean'])}" for name in names]
+                    print(f"    {test} vs {ref}: " + ', '.join(parts))
+                record['changes'].append(change)
     return record
+
+
+def normal_spread(sessions):
+    """Per-session means of the five valid normal sessions (after warm-up) and their spread."""
+    print('\n=== Spread between normal sessions (windows after the warm-up segment) ===')
+    rows, missing = [], []
+    for label in NORMAL_SESSIONS:
+        if label not in sessions:
+            print(f'  MISSING: label {label!r} not found in the raw data, skipped')
+            missing.append(label)
+            continue
+        s = summarize(sessions[label])
+        rows.append({'label': label, 'windows': s['n'],
+                     **{n: (round(s[n]['mean'], 4 if n != 'current_ma' else 1) if s[n]['mean'] is not None else None)
+                        for n in SIGNALS + BANDS},
+                     '_exact': {n: s[n]['mean'] for n in SIGNALS + BANDS}})
+    print(f"  {'session':<18} {'n':>3}  {'vib_rms_g':>9}  {'vib_peak_g':>10}  {'current_ma':>10}")
+    for r in rows:
+        print(f"  {r['label']:<18} {r['windows']:>3}  {r['vib_rms_g']:>9.4f}  {r['vib_peak_g']:>10.4f}  "
+              f"{r['current_ma']:>10.1f}")
+    summary = {}
+    for n in SIGNALS + BANDS:
+        values = [r['_exact'][n] for r in rows if r['_exact'][n] is not None]
+        if len(values) < 2:
+            summary[n] = None
+            continue
+        digits = 1 if n == 'current_ma' else 4
+        summary[n] = {'min': round(min(values), digits), 'max': round(max(values), digits),
+                      'mean': round(statistics.fmean(values), digits),
+                      'spread_percent': round((max(values) - min(values)) / statistics.fmean(values) * 100, 1)}
+        print(f"  {n:<14} min {summary[n]['min']:>9}  max {summary[n]['max']:>9}  "
+              f"spread {summary[n]['spread_percent']:.1f}%")
+    for r in rows:
+        del r['_exact']
+    return {'sessions': rows, 'missing': missing, 'summary': summary,
+            'definition': 'relative spread = (maximum - minimum) / mean of the session means, over the five '
+                          'valid normal sessions, windows after the warm-up segment only'}
 
 
 def main():
@@ -267,8 +302,8 @@ def main():
     print(f'Plateau: long sessions use all windows after the warm-up label; '
           f'other sessions use the last {PLATEAU_WINDOWS} windows. std = sample std (n - 1).')
 
-    records = [run_comparison(title, references, tests, min_current, sessions)
-               for title, references, tests, min_current in COMPARISONS]
+    records = [run_comparison(comparison, sessions) for comparison in COMPARISONS]
+    spread = normal_spread(sessions)
 
     out = Path(args.json)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -281,9 +316,11 @@ def main():
                              f'{FRICTION_MIN_CURRENT_MA:g} mA'),
             'std': 'sample standard deviation (n - 1)',
             'percent': 'change of the test mean relative to the reference mean, one decimal, as printed',
-            'short_runs': (f'runs with fewer than {WARMUP_WINDOWS} windows in total lie inside the warm-up: only '
-                           f'current is compared; vibration and band values are null'),
+            'like_with_like': ('vibration and frequency bands are compared only between runs in the same phase '
+                               '(both after their warm-up segment, or both short runs of the same length); '
+                               'otherwise they are null; current is always compared'),
             'comparisons': records,
+            'normal_spread': spread,
         }, f, indent=2)
     print(f'\nWrote {out}')
 

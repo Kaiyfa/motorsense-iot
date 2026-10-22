@@ -147,14 +147,26 @@ class EvaluationCalculationTests(unittest.TestCase):
         self.assertTrue(vibration.startswith('Vibration alone detects it only partly and slowly'))
         vib_delay = self.metrics['methods']['ae_vibration']['summary']['mean_delay_alerted_faults']
         self.assertIn(f"mean delay of {vib_delay['min']:g} to {vib_delay['max']:g} s", vibration)
-        self.assertTrue(others.startswith('Imbalance, a loosened mount, friction and frequency bands were not '
-                                          'detectable on this rig'))
-        # largest vibration or band change outside the drift and open-lead comparisons, and the drift itself
-        faults = [ch for c in findings['comparisons']
-                  if c['title'] not in (calc.DRIFT_TITLE, calc.DETECTED_FAULT_TITLE) for ch in c['changes']]
-        largest = max(abs(v) for ch in faults for k, v in ch['percent'].items() if k != 'current_ma' and v is not None)
-        self.assertIn(f'more than {largest:.1f} %', others)
-        self.assertIn('58.9 % shift', others)
+        spread = findings['normal_spread']['summary']
+        self.assertTrue(others.startswith(
+            'Compared like with like, against the spread between normal sessions (RMS '
+            f"{spread['vib_rms_g']['spread_percent']:.1f} %, peak {spread['vib_peak_g']['spread_percent']:.1f} %"))
+        # every like-for-like vibration change of a fault run is named, with the verdict its number supports
+        for c in findings['comparisons']:
+            if c['title'] not in calc.FAULT_NAMES:
+                continue
+            for ch in c['changes']:
+                for key, name in (('vib_rms_g', 'RMS'), ('vib_peak_g', 'peak')):
+                    value = ch['percent'].get(key)
+                    if value is None:
+                        continue
+                    self.assertIn(f"{name} ({value:+.1f} %)", others)
+        self.assertIn('r3_test_fault (imbalance) is above it in RMS (+16.8 %) and peak (+19.1 %)', others)
+        self.assertIn('r3_test_fault2 (imbalance) is within it in RMS (+8.4 %) and peak (+10.7 %)', others)
+        self.assertIn('r3_test_loose (loosened mount) is above it in peak (+15.0 %) and within it in RMS (+8.2 %)',
+                      others)
+        self.assertNotIn('not detectable', others)
+        self.assertNotIn('r4_tune (', others)                       # not comparable: only its current counts
 
         broken = json.loads(json.dumps(self.metrics))
         broken['methods']['ae_vibration']['summary']['fault_sessions_alerted']['min'] = 3.0
@@ -162,10 +174,16 @@ class EvaluationCalculationTests(unittest.TestCase):
         current, vibration, _ = calc.what_this_shows(broken, findings)
         self.assertNotIn('equally well', current)
         self.assertNotIn('only partly', vibration)
-        shifted = json.loads(json.dumps(findings))
-        shifted['comparisons'][0]['changes'][1]['percent'] = {'vib_rms_g': 1.0, 'vib_peak_g': 1.0, 'current_ma': 0.0}
-        shifted['comparisons'][0]['changes'][0]['percent'] = {'vib_rms_g': 1.0, 'vib_peak_g': 1.0, 'current_ma': 0.0}
-        self.assertNotIn('not detectable', calc.what_this_shows(None, shifted)[0])
+        # the verdict follows the spread: widen it and every run is within it
+        wide = json.loads(json.dumps(findings))
+        for value in wide['normal_spread']['summary'].values():
+            value['spread_percent'] = 50.0
+        text = calc.what_this_shows(None, wide)[0]
+        self.assertNotIn('above it', text)
+        self.assertIn('r3_test_fault (imbalance) is within it in RMS (+16.8 %)', text)
+        no_spread = json.loads(json.dumps(findings))
+        del no_spread['normal_spread']
+        self.assertIn('negative findings below', calc.what_this_shows(None, no_spread)[0])
         self.assertEqual(calc.what_this_shows(None, None), [])
 
     def test_score_path(self):
@@ -188,58 +206,86 @@ class NegativeFindingsJsonTests(unittest.TestCase):
         self.assertEqual(self.nf.pct_value(0.1346, 0.1482), -9.2)
         self.assertIsNone(self.nf.pct_value(1.0, 0.0))
 
+    def rows(self, n, rms, cur, bands=None):
+        return [{'timestamp_utc': f'2026-01-01T00:{i // 60:02d}:{i % 60:02d}', 'vib_rms_g': rms,
+                 'vib_peak_g': 0.3, 'current_ma': cur, **{b: bands for b in self.nf.BANDS}} for i in range(n)]
+
+    def comparison(self, references, tests, min_current=None):
+        return {'title': 'T', 'references': references, 'tests': tests, 'min_current': min_current, 'reason': 'R'}
+
     def test_comparison_record_matches_the_printed_numbers(self):
-        def rows(n, rms, cur):
-            return [{'timestamp_utc': f'2026-01-01T00:{i // 60:02d}:{i % 60:02d}', 'vib_rms_g': rms,
-                     'vib_peak_g': 0.3, 'current_ma': cur, **{b: None for b in self.nf.BANDS}} for i in range(n)]
-        sessions = {'ref': rows(200, 0.10, 800.0), 'test': rows(200, 0.11, 800.0)}
+        sessions = {'ref': self.rows(180, 0.10, 800.0), 'test': self.rows(180, 0.11, 800.0)}
         with mock.patch('sys.stdout', new_callable=io.StringIO) as out:
-            record = self.nf.run_comparison('T', ['ref'], ['test', 'missing'], None, sessions)
+            record = self.nf.run_comparison(self.comparison(['ref'], ['test', 'missing']), sessions)
         self.assertIn('vib_rms_g +10.0%', out.getvalue())
+        self.assertIn('Reference: R', out.getvalue())
+        self.assertEqual(record['reference_reason'], 'R')
         self.assertEqual(record['missing'], ['missing'])
         self.assertEqual(record['changes'][0]['percent']['vib_rms_g'], 10.0)
         self.assertEqual([s['windows'] for s in record['sessions']], [90, 90])
+        self.assertEqual(record['sessions'][0]['phase'], 'last 90 windows of a 180 s run')
 
-    def test_runs_shorter_than_the_warm_up_report_only_current(self):
-        from dashboard.ml.constants import WARMUP_SECONDS
-        self.assertEqual(self.nf.WARMUP_WINDOWS, WARMUP_SECONDS)
-
-        def rows(n, rms, cur):
-            return [{'timestamp_utc': f'2026-01-01T00:{i // 60:02d}:{i % 60:02d}', 'vib_rms_g': rms,
-                     'vib_peak_g': 0.3, 'current_ma': cur, **{b: 0.05 for b in self.nf.BANDS}} for i in range(n)]
-        sessions = {'ref': rows(240, 0.10, 800.0), 'short': rows(60, 0.08, 816.0), 'long': rows(180, 0.11, 800.0)}
+    def test_vibration_only_like_with_like(self):
+        sessions = {
+            'ref': self.rows(240, 0.10, 800.0, 0.05), 'same': self.rows(240, 0.11, 808.0, 0.06),
+            'shorter': self.rows(60, 0.08, 816.0, 0.04), 'long': self.rows(480, 0.12, 800.0),
+            'long_warmup': self.rows(180, 0.05, 800.0), 'long_ref': self.rows(480, 0.10, 800.0),
+            'long_ref_warmup': self.rows(120, 0.05, 800.0),
+        }
         with mock.patch('sys.stdout', new_callable=io.StringIO) as out:
-            record = self.nf.run_comparison('T', ['ref'], ['short', 'long'], None, sessions)
-        short, long_ = record['changes']
-        self.assertEqual(short['percent'], {'vib_rms_g': None, 'vib_peak_g': None, 'current_ma': 2.0})
-        self.assertEqual(short['not_compared'], ['vib_rms_g', 'vib_peak_g'] + self.nf.BANDS)
-        self.assertEqual(short['not_compared_reason'], 'run shorter than the warm-up')
-        self.assertEqual(short['shorter_than_warmup'], ['short'])
-        self.assertNotIn('not_compared', long_)                      # 180 windows: not shorter than the warm-up
-        self.assertEqual(long_['percent']['vib_rms_g'], 10.0)
-        by_label = {s['label']: s for s in record['sessions']}
-        self.assertIsNone(by_label['short']['vib_rms_g']['mean'])
-        self.assertIsNone(by_label['short']['bands'])
-        self.assertEqual(by_label['short']['current_ma']['mean'], 816.0)
-        self.assertTrue(by_label['short']['shorter_than_warmup'])
-        self.assertIn('short vs ref: current_ma +2.0%; vibration and bands n/a', out.getvalue())
+            record = self.nf.run_comparison(self.comparison(['ref'], ['same', 'shorter', 'long']), sessions)
+            after = self.nf.run_comparison(self.comparison(['long_ref'], ['long']), sessions)
+        same, shorter, long_ = record['changes']
+        self.assertEqual((same['percent']['vib_rms_g'], same['percent']['current_ma'], same['percent']['band_1_6_g']),
+                         (10.0, 1.0, 20.0))
+        self.assertNotIn('not_compared', same)
+        self.assertEqual(shorter['percent']['current_ma'], 2.0)
+        self.assertIsNone(shorter['percent']['vib_rms_g'])
+        self.assertEqual(shorter['not_compared'], ['vib_rms_g', 'vib_peak_g'] + self.nf.BANDS)
+        self.assertEqual(shorter['not_compared_reason'], 'runs not comparable')
+        self.assertEqual(shorter['not_compared_detail'],
+                         'shorter: last 90 windows of a 60 s run; ref: last 90 windows of a 240 s run')
+        self.assertEqual(long_['not_compared'], ['vib_rms_g', 'vib_peak_g'])     # no bands in 'long'
+        self.assertEqual(after['changes'][0]['percent']['vib_rms_g'], 20.0)      # both after their warm-up
+        self.assertIn('shorter vs ref: current_ma +2.0%; vibration and bands n/a (runs not comparable', out.getvalue())
+        self.assertEqual([c['text'] for c in calc.finding_cells(shorter)],
+                         ['n/a, runs not comparable'] * 2 + ['+2.0 %', 'n/a, runs not comparable'])
 
-        cells = calc.finding_cells(short)
-        self.assertEqual([c['text'] for c in cells], ['n/a, run shorter than the warm-up'] * 2
-                         + ['+2.0 %', 'n/a, run shorter than the warm-up'])
+    def test_normal_spread(self):
+        sessions = {label: self.rows(480, rms, cur) for label, rms, cur in zip(
+            self.nf.NORMAL_SESSIONS, [0.10, 0.11, 0.12, 0.10, 0.12], [800.0, 810.0, 805.0, 800.0, 800.0])}
+        sessions['r5_normal_01_warmup'] = self.rows(180, 0.01, 0.0)          # warm-up rows are not used
+        with mock.patch('sys.stdout', new_callable=io.StringIO):
+            spread = self.nf.normal_spread(sessions)
+        self.assertEqual([r['label'] for r in spread['sessions']], self.nf.NORMAL_SESSIONS)
+        self.assertEqual(spread['summary']['vib_rms_g'], {'min': 0.1, 'max': 0.12, 'mean': 0.11,
+                                                          'spread_percent': 18.2})   # 0.02 / 0.11
+        self.assertEqual(spread['summary']['current_ma']['spread_percent'], 1.2)    # 10 / 803
+        self.assertIsNone(spread['summary']['band_1_6_g'])
 
-    def test_committed_json_leaves_out_vibration_only_for_the_short_friction_runs(self):
+    def test_committed_json_compares_vibration_only_like_with_like(self):
         data = json.loads((REPO / 'results' / 'negative_findings.json').read_text())
-        short = {s['label'] for c in data['comparisons'] for s in c['sessions'] if s['shorter_than_warmup']}
-        self.assertEqual(short, {'r4_tune', 'r4_tune2'})
+        by_title = {c['title']: c for c in data['comparisons']}
+        self.assertEqual(by_title['Imbalance (taped weights)']['references'], ['r2_test_baseline'])
+        self.assertEqual(by_title['Loosened motor mount']['references'], ['r2_test_baseline'])
         for c in data['comparisons']:
+            self.assertTrue(c['reference_reason'])
+            phases = {s['label']: s['phase'] for s in c['sessions']}
             for ch in c['changes']:
-                if {ch['test'], ch['reference']} & short:
-                    self.assertIsNone(ch['percent']['vib_rms_g'])
-                    self.assertIsNotNone(ch['percent']['current_ma'])
-                else:
+                self.assertIsNotNone(ch['percent']['current_ma'])
+                if phases[ch['test']] == phases[ch['reference']]:
                     self.assertNotIn('not_compared', ch)
                     self.assertIsNotNone(ch['percent']['vib_rms_g'])
+                else:
+                    self.assertIsNone(ch['percent']['vib_rms_g'])
+        not_compared = {(ch['test'], ch['reference']) for c in data['comparisons'] for ch in c['changes']
+                        if 'not_compared' in ch}
+        self.assertEqual(not_compared, {('r4_band_normal_a', 'r2_normal_01'), ('r4_tune', 'r4_band_normal_a'),
+                                        ('r4_tune2', 'r4_band_normal_a'), ('r4_test_open', 'r4_band_normal_a')})
+        spread = data['normal_spread']
+        self.assertEqual([r['label'] for r in spread['sessions']],
+                         ['r5_normal_01', 'r5_normal_02', 'r5_normal_03', 'r5_normal_04_redo', 'r5_normal_05'])
+        self.assertTrue(all(r['windows'] in (479, 480) for r in spread['sessions']))
 
     def test_finding_cells(self):
         cells = calc.finding_cells({'percent': {'vib_rms_g': 13.1, 'vib_peak_g': 11.0, 'current_ma': -14.6,
@@ -501,21 +547,27 @@ class EvaluationAndSetupViewTests(TabTestCase):
         self.assertIn(metrics['environment']['imported']['tensorflow'], html)
         self.assertIn('performs as well as the autoencoder', html)
         self.assertIn('Imbalance (taped weights)', html)
-        self.assertIn('r4_test_drag', html)
+        self.assertIn('r2_test_baseline', html)
         self.assertNotIn('ccuracy', html)
         self.assertEqual(html.count('Recorded, not live'), 5)
         self.assertEqual(html.count('same for all seeds'), 2)                   # once per table, not per cell
         self.assertLess(html.index('Not independent trials'), html.index('What this shows'))
         self.assertLess(html.index('What this shows'), html.index('Detectors on the test sessions'))
         self.assertIn('not a significant difference', html)
-        self.assertIn('Runs shorter than the 180 s warm-up lie entirely inside it', html)
         from dashboard import formats
         from django.utils.dateparse import parse_datetime
         self.assertIn(f"From results/metrics.json ({formats.format_datetime(parse_datetime(metrics['created_at']))})",
                       html)
         # the friction runs are shorter than the warm-up: 4 rows x 2 vibration cells, and the band cell of
         # the 2 rows whose reference has frequency bands
-        self.assertEqual(html.count('n/a, run shorter than the warm-up'), 10)
+        # vibration only like with like: 4 rows x 2 vibration cells, the band cells of the 3 rows whose
+        # sessions both have bands, and the sentence in the introduction that explains them
+        self.assertEqual(html.count('n/a, runs not comparable'), 4 * 2 + 3 + 1)
+        self.assertIn('Why this reference: r2_test_baseline is the normal 180 s run', html)
+        self.assertIn('Spread between normal sessions', html)
+        self.assertIn('An effect smaller than this spread cannot be told apart from normal session-to-session '
+                      'variation on this rig.', html)
+        self.assertIn('Not comparable for vibration: r4_tune: last 90 windows of a 60 s run', html)
 
     def test_evaluation_without_result_files(self):
         with mock.patch('dashboard.views_tabs.RESULTS_DIR', Path('/nonexistent')):

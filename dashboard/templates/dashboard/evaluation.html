@@ -87,16 +87,38 @@
     {% if not findings_available %}
       <p class="notice">results/negative_findings.json was not found. Run <code>python analysis/negative_findings.py &lt;raw data directory&gt;</code>.</p>
     {% else %}
-      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.short_runs %} Runs shorter than the {{ warmup_seconds }} s warm-up lie entirely inside it, so they are compared on current only; their vibration and band cells read n/a.{% endif %}</p>
+      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.like_with_like %} Like with like: {{ findings_meta.like_with_like }}; such cells read "n/a, runs not comparable".{% endif %}</p>
+
+      {% if normal_spread %}
+        <h3 class="findings-title">Spread between normal sessions</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th scope="col">Session</th><th scope="col" class="num-col">Windows</th>{% for col in normal_spread.columns %}<th scope="col" class="num-col">{{ col }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for r in normal_spread.rows %}
+                <tr><td class="mono" data-label="Session"><div>{{ r.label }}</div></td><td class="num num-col" data-label="Windows"><div>{{ r.windows }}</div></td>
+                  {% for v in r.cells %}<td class="num num-col" data-label="{% cycle 'vib_rms_g' 'vib_peak_g' 'current_ma' '1–6 Hz' '6–20 Hz' '20–50 Hz' '50–100 Hz' %}"><div>{{ v }}</div></td>{% endfor %}</tr>
+              {% endfor %}
+              {% for r in normal_spread.footer %}
+                <tr class="reference-row"><th scope="row" data-label="">{{ r.label }}</th><td class="num-col" data-label=""></td>
+                  {% for v in r.cells %}<td class="num num-col" data-label="{% cycle 'vib_rms_g' 'vib_peak_g' 'current_ma' '1–6 Hz' '6–20 Hz' '20–50 Hz' '50–100 Hz' %}"><div>{{ v }}</div></td>{% endfor %}</tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="cell-note">Session means in g (current in mA); {{ normal_spread.definition }}. An effect smaller than this spread cannot be told apart from normal session-to-session variation on this rig. The spread comes from 8-minute sessions measured after their warm-up segment; the 180 s and 240 s runs below are measured at the end of a short run.</p>
+      {% endif %}
+
       {% for c in findings %}
         <h3 class="findings-title">{{ c.title }}</h3>
+        {% if c.reference_reason %}<p class="card-sub">Why this reference: {{ c.reference_reason }}</p>{% endif %}
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th scope="col">Test session</th><th scope="col">Reference session</th><th scope="col" class="num-col">vib_rms_g</th><th scope="col" class="num-col">vib_peak_g</th><th scope="col" class="num-col">current</th><th scope="col">Frequency bands</th></tr></thead>
             <tbody>
               {% for row in c.rows %}
-                <tr{% if row.is_reference %} class="reference-row"{% endif %}>
-                  <td class="mono" data-label="Test session"><div>{{ row.test }}{% if row.is_reference %} <span class="cell-note">reference, no fault applied</span>{% endif %}</div></td>
+                <tr>
+                  <td class="mono" data-label="Test session"><div>{{ row.test }}</div></td>
                   <td class="mono" data-label="Reference session"><div>{{ row.reference }}</div></td>
                   {% for cell in row.cells %}
                     <td class="{% if cell.numeric %}num num-col{% endif %}{% if cell.missing %} muted{% endif %}" data-label="{{ cell.label }}"><div>{{ cell.text }}</div></td>
@@ -106,7 +128,8 @@
             </tbody>
           </table>
         </div>
-        <p class="cell-note">Windows per session: {% for s in c.sessions %}<span class="mono">{{ s.label }}</span> {{ s.windows }}{% if s.shorter_than_warmup %} (the whole run is {{ s.run_windows }} windows, shorter than the warm-up){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+        {% for row in c.rows %}{% if row.detail %}<p class="cell-note">Not comparable for vibration: {{ row.detail }}.</p>{% endif %}{% endfor %}
+        <p class="cell-note">Windows per session: {% for s in c.sessions %}<span class="mono">{{ s.label }}</span> {{ s.windows }} ({{ s.phase }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>
       {% endfor %}
     {% endif %}
   </section>
