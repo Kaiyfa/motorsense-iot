@@ -1,0 +1,1763 @@
+{
+  "plan": "docs/evaluation_plan.md",
+  "created_at": "2026-10-22T00:20:23.896036+00:00",
+  "git": {
+    "commit": "222c4ef621c9896ca06acda49dec3ec3236a700f",
+    "clean": true,
+    "status": []
+  },
+  "environment": {
+    "python": "3.10.13",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "imported": {
+      "tensorflow": "2.13.0",
+      "keras": "2.13.1",
+      "numpy": "1.24.3"
+    },
+    "installed_distributions": {
+      "tensorflow-macos": "2.13.0",
+      "tensorflow-metal": "1.0.1",
+      "tensorflow": "2.20.0",
+      "keras": "2.13.1",
+      "numpy": "1.24.3",
+      "h5py": "3.15.1"
+    },
+    "note": "The venv lists both tensorflow-macos and tensorflow; the version under \"imported\" is the one actually used.",
+    "devices_used": "CPU only (GPU hidden with tf.config.set_visible_devices)"
+  },
+  "settings": {
+    "sequence_length": 30,
+    "stride": 1,
+    "unscored_seconds_per_session": 29,
+    "threshold_percentile": 99.5,
+    "threshold_set_on": "r5_normal_04_redo",
+    "alert_seconds": 10,
+    "epochs": 50,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "lstm_units": 32,
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "scaler": {
+      "vib_rms_g": {
+        "mean": 0.12367252433936023,
+        "std": 0.006619088851944512
+      },
+      "vib_peak_g": {
+        "mean": 0.31963876912378303,
+        "std": 0.03705475361479219
+      },
+      "current": {
+        "mean": 0.8178570236439499,
+        "std": 0.004964953955025044
+      }
+    },
+    "scaler_std_ddof": 0,
+    "seed_summary_std_ddof": 1,
+    "sessions": {
+      "r5_normal_01": {
+        "role": "train",
+        "rows": 480,
+        "scored_seconds": 451
+      },
+      "r5_normal_02": {
+        "role": "train",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_normal_03": {
+        "role": "train",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_normal_04_redo": {
+        "role": "validation",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_normal_05": {
+        "role": "test_normal",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_fault_open_01": {
+        "role": "test_fault",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_fault_open_02": {
+        "role": "test_fault",
+        "rows": 479,
+        "scored_seconds": 450
+      },
+      "r5_fault_open_03": {
+        "role": "test_fault",
+        "rows": 479,
+        "scored_seconds": 450
+      }
+    }
+  },
+  "methods": {
+    "ae_all": {
+      "inputs": [
+        "vib_rms_g",
+        "vib_peak_g",
+        "current"
+      ],
+      "seeds": {
+        "0": {
+          "threshold": 2.9486190521717073,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "1": {
+          "threshold": 3.3554966044425965,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "2": {
+          "threshold": 3.6518276488780974,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "3": {
+          "threshold": 3.6087657761573793,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "4": {
+          "threshold": 3.1835339641571045,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        }
+      },
+      "training": {
+        "0": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.6290513277053833,
+          "first_train_loss": 0.7969723343849182,
+          "train_seconds": 10.6
+        },
+        "1": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.6263347268104553,
+          "first_train_loss": 0.7645601630210876,
+          "train_seconds": 10.7
+        },
+        "2": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.630480170249939,
+          "first_train_loss": 0.7755377292633057,
+          "train_seconds": 10.6
+        },
+        "3": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.6319190263748169,
+          "first_train_loss": 0.8058483004570007,
+          "train_seconds": 10.8
+        },
+        "4": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.6312193870544434,
+          "first_train_loss": 0.789135754108429,
+          "train_seconds": 10.7
+        }
+      },
+      "summary": {
+        "threshold": {
+          "mean": 3.3496486091613766,
+          "std": 0.2944939974724395,
+          "min": 2.9486190521717073,
+          "max": 3.6518276488780974,
+          "n": 5
+        },
+        "validation_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.tp": {
+          "mean": 1350.0,
+          "std": 0.0,
+          "min": 1350.0,
+          "max": 1350.0,
+          "n": 5
+        },
+        "per_second.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.fn": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.tn": {
+          "mean": 450.0,
+          "std": 0.0,
+          "min": 450.0,
+          "max": 450.0,
+          "n": 5
+        },
+        "per_second.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_second.recall": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_second.false_positive_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.tp": {
+          "mean": 3.0,
+          "std": 0.0,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "per_session.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.fn": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.tn": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.recall": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "normal_test_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "fault_sessions_alerted": {
+          "mean": 3.0,
+          "std": 0.0,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "mean_delay_alerted_faults": {
+          "mean": 9.0,
+          "std": 0.0,
+          "min": 9.0,
+          "max": 9.0,
+          "n": 5
+        }
+      }
+    },
+    "ae_vibration": {
+      "inputs": [
+        "vib_rms_g",
+        "vib_peak_g"
+      ],
+      "seeds": {
+        "0": {
+          "threshold": 2.9629363429546354,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 273,
+            "fp": 0,
+            "fn": 1077,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 0.20222222222222222,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 1,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 0.6666666666666666
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 3,
+              "delay_seconds": 152
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 2,
+              "delay_seconds": 256
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 2,
+            "mean_delay_alerted_faults": 204.0
+          }
+        },
+        "1": {
+          "threshold": 2.9070734035968773,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 323,
+            "fp": 0,
+            "fn": 1027,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 0.23925925925925925,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 1,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 0.6666666666666666
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 3,
+              "delay_seconds": 152
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 335
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 2,
+            "mean_delay_alerted_faults": 243.5
+          }
+        },
+        "2": {
+          "threshold": 2.976244868040084,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 254,
+            "fp": 0,
+            "fn": 1096,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 0.18814814814814815,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 1,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 0.6666666666666666
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 4,
+              "delay_seconds": 152
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 344
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 2,
+            "mean_delay_alerted_faults": 248.0
+          }
+        },
+        "3": {
+          "threshold": 2.744208903312683,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 241,
+            "fp": 0,
+            "fn": 1109,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 0.17851851851851852,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 1,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 0.6666666666666666
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 2,
+              "delay_seconds": 152
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 2,
+              "delay_seconds": 251
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 2,
+            "mean_delay_alerted_faults": 201.5
+          }
+        },
+        "4": {
+          "threshold": 2.6013824200630187,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 391,
+            "fp": 0,
+            "fn": 959,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 0.2896296296296296,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 314
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 4,
+              "delay_seconds": 18
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 3,
+              "delay_seconds": 259
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 197.0
+          }
+        }
+      },
+      "training": {
+        "0": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.7416024208068848,
+          "first_train_loss": 0.8981180191040039,
+          "train_seconds": 10.7
+        },
+        "1": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.7395398020744324,
+          "first_train_loss": 0.9091060757637024,
+          "train_seconds": 11.7
+        },
+        "2": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.7275093793869019,
+          "first_train_loss": 0.9105645418167114,
+          "train_seconds": 11.0
+        },
+        "3": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.7420873045921326,
+          "first_train_loss": 0.8954683542251587,
+          "train_seconds": 10.1
+        },
+        "4": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.7399874329566956,
+          "first_train_loss": 0.8983858823776245,
+          "train_seconds": 10.8
+        }
+      },
+      "summary": {
+        "threshold": {
+          "mean": 2.8383691875934596,
+          "std": 0.1614588460493906,
+          "min": 2.6013824200630187,
+          "max": 2.976244868040084,
+          "n": 5
+        },
+        "validation_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.tp": {
+          "mean": 296.4,
+          "std": 61.38240790324211,
+          "min": 241.0,
+          "max": 391.0,
+          "n": 5
+        },
+        "per_second.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.fn": {
+          "mean": 1053.6,
+          "std": 61.38240790324212,
+          "min": 959.0,
+          "max": 1109.0,
+          "n": 5
+        },
+        "per_second.tn": {
+          "mean": 450.0,
+          "std": 0.0,
+          "min": 450.0,
+          "max": 450.0,
+          "n": 5
+        },
+        "per_second.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_second.recall": {
+          "mean": 0.21955555555555556,
+          "std": 0.04546845029869786,
+          "min": 0.17851851851851852,
+          "max": 0.2896296296296296,
+          "n": 5
+        },
+        "per_second.false_positive_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.tp": {
+          "mean": 2.2,
+          "std": 0.4472135954999579,
+          "min": 2.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "per_session.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.fn": {
+          "mean": 0.8,
+          "std": 0.4472135954999579,
+          "min": 0.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.tn": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.recall": {
+          "mean": 0.7333333333333333,
+          "std": 0.14907119849998599,
+          "min": 0.6666666666666666,
+          "max": 1.0,
+          "n": 5
+        },
+        "normal_test_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "fault_sessions_alerted": {
+          "mean": 2.2,
+          "std": 0.4472135954999579,
+          "min": 2.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "mean_delay_alerted_faults": {
+          "mean": 218.8,
+          "std": 24.78053671735138,
+          "min": 197.0,
+          "max": 248.0,
+          "n": 5
+        }
+      }
+    },
+    "ae_current": {
+      "inputs": [
+        "current"
+      ],
+      "seeds": {
+        "0": {
+          "threshold": 6.231872844696045,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "1": {
+          "threshold": 6.379893956184387,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "2": {
+          "threshold": 6.401358799934387,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "3": {
+          "threshold": 6.370591557025909,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        },
+        "4": {
+          "threshold": 6.342455041408539,
+          "validation_episodes": 0,
+          "per_second": {
+            "tp": 1350,
+            "fp": 0,
+            "fn": 0,
+            "tn": 450,
+            "precision": 1.0,
+            "recall": 1.0,
+            "false_positive_rate": 0.0
+          },
+          "per_session": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "sessions": {
+            "r5_normal_05": {
+              "scored_seconds": 450,
+              "alert": false,
+              "episodes": 0,
+              "delay_seconds": null
+            },
+            "r5_fault_open_01": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_02": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            },
+            "r5_fault_open_03": {
+              "scored_seconds": 450,
+              "alert": true,
+              "episodes": 1,
+              "delay_seconds": 9
+            }
+          },
+          "summary": {
+            "normal_test_episodes": 0,
+            "fault_sessions_alerted": 3,
+            "mean_delay_alerted_faults": 9.0
+          }
+        }
+      },
+      "training": {
+        "0": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.3215778172016144,
+          "first_train_loss": 0.4559117555618286,
+          "train_seconds": 10.8
+        },
+        "1": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.3327348828315735,
+          "first_train_loss": 0.5935562252998352,
+          "train_seconds": 10.5
+        },
+        "2": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.3180796802043915,
+          "first_train_loss": 0.4944101572036743,
+          "train_seconds": 10.7
+        },
+        "3": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.32167524099349976,
+          "first_train_loss": 0.5180301070213318,
+          "train_seconds": 10.7
+        },
+        "4": {
+          "train_sequences": 1351,
+          "final_train_loss": 0.3227689564228058,
+          "first_train_loss": 0.512527346611023,
+          "train_seconds": 10.7
+        }
+      },
+      "summary": {
+        "threshold": {
+          "mean": 6.345234439849853,
+          "std": 0.06680715824377284,
+          "min": 6.231872844696045,
+          "max": 6.401358799934387,
+          "n": 5
+        },
+        "validation_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.tp": {
+          "mean": 1350.0,
+          "std": 0.0,
+          "min": 1350.0,
+          "max": 1350.0,
+          "n": 5
+        },
+        "per_second.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.fn": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_second.tn": {
+          "mean": 450.0,
+          "std": 0.0,
+          "min": 450.0,
+          "max": 450.0,
+          "n": 5
+        },
+        "per_second.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_second.recall": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_second.false_positive_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.tp": {
+          "mean": 3.0,
+          "std": 0.0,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "per_session.fp": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.fn": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "per_session.tn": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.precision": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "per_session.recall": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 5
+        },
+        "normal_test_episodes": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 5
+        },
+        "fault_sessions_alerted": {
+          "mean": 3.0,
+          "std": 0.0,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 5
+        },
+        "mean_delay_alerted_faults": {
+          "mean": 9.0,
+          "std": 0.0,
+          "min": 9.0,
+          "max": 9.0,
+          "n": 5
+        }
+      }
+    },
+    "z_current": {
+      "inputs": [
+        "current"
+      ],
+      "deterministic": {
+        "threshold": 2.7581275637391247,
+        "validation_episodes": 0,
+        "per_second": {
+          "tp": 1350,
+          "fp": 14,
+          "fn": 0,
+          "tn": 436,
+          "precision": 0.9897360703812317,
+          "recall": 1.0,
+          "false_positive_rate": 0.03111111111111111
+        },
+        "per_session": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "sessions": {
+          "r5_normal_05": {
+            "scored_seconds": 450,
+            "alert": false,
+            "episodes": 0,
+            "delay_seconds": null
+          },
+          "r5_fault_open_01": {
+            "scored_seconds": 450,
+            "alert": true,
+            "episodes": 1,
+            "delay_seconds": 9
+          },
+          "r5_fault_open_02": {
+            "scored_seconds": 450,
+            "alert": true,
+            "episodes": 1,
+            "delay_seconds": 9
+          },
+          "r5_fault_open_03": {
+            "scored_seconds": 450,
+            "alert": true,
+            "episodes": 1,
+            "delay_seconds": 9
+          }
+        },
+        "summary": {
+          "normal_test_episodes": 0,
+          "fault_sessions_alerted": 3,
+          "mean_delay_alerted_faults": 9.0
+        }
+      },
+      "summary": {
+        "threshold": {
+          "mean": 2.7581275637391247,
+          "std": null,
+          "min": 2.7581275637391247,
+          "max": 2.7581275637391247,
+          "n": 1
+        },
+        "validation_episodes": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_second.tp": {
+          "mean": 1350.0,
+          "std": null,
+          "min": 1350.0,
+          "max": 1350.0,
+          "n": 1
+        },
+        "per_second.fp": {
+          "mean": 14.0,
+          "std": null,
+          "min": 14.0,
+          "max": 14.0,
+          "n": 1
+        },
+        "per_second.fn": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_second.tn": {
+          "mean": 436.0,
+          "std": null,
+          "min": 436.0,
+          "max": 436.0,
+          "n": 1
+        },
+        "per_second.precision": {
+          "mean": 0.9897360703812317,
+          "std": null,
+          "min": 0.9897360703812317,
+          "max": 0.9897360703812317,
+          "n": 1
+        },
+        "per_second.recall": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_second.false_positive_rate": {
+          "mean": 0.03111111111111111,
+          "std": null,
+          "min": 0.03111111111111111,
+          "max": 0.03111111111111111,
+          "n": 1
+        },
+        "per_session.tp": {
+          "mean": 3.0,
+          "std": null,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 1
+        },
+        "per_session.fp": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_session.fn": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_session.tn": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_session.precision": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_session.recall": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "normal_test_episodes": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "fault_sessions_alerted": {
+          "mean": 3.0,
+          "std": null,
+          "min": 3.0,
+          "max": 3.0,
+          "n": 1
+        },
+        "mean_delay_alerted_faults": {
+          "mean": 9.0,
+          "std": null,
+          "min": 9.0,
+          "max": 9.0,
+          "n": 1
+        }
+      }
+    },
+    "z_vib_rms": {
+      "inputs": [
+        "vib_rms_g"
+      ],
+      "deterministic": {
+        "threshold": 3.0693007442243254,
+        "validation_episodes": 0,
+        "per_second": {
+          "tp": 403,
+          "fp": 7,
+          "fn": 947,
+          "tn": 443,
+          "precision": 0.9829268292682927,
+          "recall": 0.2985185185185185,
+          "false_positive_rate": 0.015555555555555555
+        },
+        "per_session": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 2,
+          "tn": 1,
+          "precision": 1.0,
+          "recall": 0.3333333333333333
+        },
+        "sessions": {
+          "r5_normal_05": {
+            "scored_seconds": 450,
+            "alert": false,
+            "episodes": 0,
+            "delay_seconds": null
+          },
+          "r5_fault_open_01": {
+            "scored_seconds": 450,
+            "alert": false,
+            "episodes": 0,
+            "delay_seconds": null
+          },
+          "r5_fault_open_02": {
+            "scored_seconds": 450,
+            "alert": false,
+            "episodes": 0,
+            "delay_seconds": null
+          },
+          "r5_fault_open_03": {
+            "scored_seconds": 450,
+            "alert": true,
+            "episodes": 3,
+            "delay_seconds": 350
+          }
+        },
+        "summary": {
+          "normal_test_episodes": 0,
+          "fault_sessions_alerted": 1,
+          "mean_delay_alerted_faults": 350.0
+        }
+      },
+      "summary": {
+        "threshold": {
+          "mean": 3.0693007442243254,
+          "std": null,
+          "min": 3.0693007442243254,
+          "max": 3.0693007442243254,
+          "n": 1
+        },
+        "validation_episodes": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_second.tp": {
+          "mean": 403.0,
+          "std": null,
+          "min": 403.0,
+          "max": 403.0,
+          "n": 1
+        },
+        "per_second.fp": {
+          "mean": 7.0,
+          "std": null,
+          "min": 7.0,
+          "max": 7.0,
+          "n": 1
+        },
+        "per_second.fn": {
+          "mean": 947.0,
+          "std": null,
+          "min": 947.0,
+          "max": 947.0,
+          "n": 1
+        },
+        "per_second.tn": {
+          "mean": 443.0,
+          "std": null,
+          "min": 443.0,
+          "max": 443.0,
+          "n": 1
+        },
+        "per_second.precision": {
+          "mean": 0.9829268292682927,
+          "std": null,
+          "min": 0.9829268292682927,
+          "max": 0.9829268292682927,
+          "n": 1
+        },
+        "per_second.recall": {
+          "mean": 0.2985185185185185,
+          "std": null,
+          "min": 0.2985185185185185,
+          "max": 0.2985185185185185,
+          "n": 1
+        },
+        "per_second.false_positive_rate": {
+          "mean": 0.015555555555555555,
+          "std": null,
+          "min": 0.015555555555555555,
+          "max": 0.015555555555555555,
+          "n": 1
+        },
+        "per_session.tp": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_session.fp": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "per_session.fn": {
+          "mean": 2.0,
+          "std": null,
+          "min": 2.0,
+          "max": 2.0,
+          "n": 1
+        },
+        "per_session.tn": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_session.precision": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "per_session.recall": {
+          "mean": 0.3333333333333333,
+          "std": null,
+          "min": 0.3333333333333333,
+          "max": 0.3333333333333333,
+          "n": 1
+        },
+        "normal_test_episodes": {
+          "mean": 0.0,
+          "std": null,
+          "min": 0.0,
+          "max": 0.0,
+          "n": 1
+        },
+        "fault_sessions_alerted": {
+          "mean": 1.0,
+          "std": null,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 1
+        },
+        "mean_delay_alerted_faults": {
+          "mean": 350.0,
+          "std": null,
+          "min": 350.0,
+          "max": 350.0,
+          "n": 1
+        }
+      }
+    }
+  },
+  "sanity_problems": []
+}
