@@ -175,6 +175,7 @@ code {
 .brand { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
 .brand-name { font-size: var(--fs-md); font-weight: 650; letter-spacing: 0.01em; }
 .brand-equipment { font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-timezone { font-size: var(--fs-xs); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .mode-switch {
   display: inline-flex;

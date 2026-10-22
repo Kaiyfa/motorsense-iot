@@ -1,4 +1,4 @@
-{% load static versioned_static %}<!DOCTYPE html>
+{% load static versioned_static msformat %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% vstatic 'dashboard/css/app.css' %}">
   {% js_importmap %}
 </head>
-<body data-mode="{{ mode|default:'none' }}">
+<body data-mode="{{ mode|default:'none' }}" data-timezone="{% timezone_name %}">
 {% block body %}
   <a class="skip-link" href="#main">Skip to content</a>
   {% include "components/icons.html" %}
@@ -17,6 +17,7 @@
     <div class="brand">
       <span class="brand-name">MotorSense IoT</span>
       <span class="brand-equipment">EQ-001 · Bench rig, 4 DC motors</span>
+      <span class="brand-timezone">All times in {% display_timezone %}</span>
     </div>
     <nav class="mode-switch" aria-label="Data mode">
       <a href="{% url 'dashboard:dashboard' %}" data-mode-link="live" {% if mode == 'live' %}aria-current="page"{% endif %}>

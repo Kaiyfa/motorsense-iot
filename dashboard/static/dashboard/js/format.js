@@ -42,20 +42,33 @@ export function ago(seconds) {
   return `${duration(seconds)} ago`;
 }
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-const shortTimeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-const dateFmt = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+// Every date and time is shown in one time zone: the server's (settings.TIME_ZONE), which
+// base.html puts on <body data-timezone> and names once in the header. One format
+// everywhere: 22 Oct 2026, 07:23:31 (the same as the server-side |msdatetime filter).
+export const TIME_ZONE = globalThis.document?.body?.dataset.timezone || undefined;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const partsFmt = new Intl.DateTimeFormat('en-GB', {
+  timeZone: TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
 
-export const clock = (ms) => timeFmt.format(new Date(ms));
-export const shortClock = (ms) => shortTimeFmt.format(new Date(ms));
-export const date = (ms) => dateFmt.format(new Date(ms));
+function parts(ms) {
+  const out = {};
+  for (const p of partsFmt.formatToParts(new Date(ms))) if (p.type !== 'literal') out[p.type] = p.value;
+  return out;
+}
 
-export function timezoneLabel() {
-  const minutes = -new Date().getTimezoneOffset();
-  const sign = minutes >= 0 ? '+' : MINUS;
-  const h = Math.floor(Math.abs(minutes) / 60);
-  const m = Math.abs(minutes) % 60;
-  return `UTC${sign}${h}${m ? ':' + String(m).padStart(2, '0') : ''}`;
+export const clock = (ms) => { const p = parts(ms); return `${p.hour}:${p.minute}:${p.second}`; };
+export const shortClock = (ms) => { const p = parts(ms); return `${p.hour}:${p.minute}`; };
+export const date = (ms) => { const p = parts(ms); return `${Number(p.day)} ${MONTHS[Number(p.month) - 1]} ${p.year}`; };
+export const dateTime = (ms) => `${date(ms)}, ${clock(ms)}`;
+
+// Offset of the display time zone from UTC at ms, in milliseconds (for round tick times).
+export function zoneOffsetMs(ms) {
+  const p = parts(ms);
+  const asUTC = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute),
+    Number(p.second));
+  return asUTC - Math.floor(ms / 1000) * 1000;
 }
 
 // Elapsed time as m:ss (or h:mm:ss)

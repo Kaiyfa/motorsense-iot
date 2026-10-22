@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load msformat %}
 {% block title %}Evaluation · MotorSense IoT{% endblock %}
 
 {% block content %}
@@ -22,7 +23,7 @@
     <div class="card-head">
       <div>
         <h2 id="methods-title">Detectors on the test sessions</h2>
-        <p class="card-sub">From results/metrics.json ({{ created_at|slice:":19" }} UTC). Per-second columns count the {{ test_seconds }} scored seconds of each test session; per-session columns treat a session as detected when at least one alert fired. Autoencoder rows: mean over seeds {{ seeds|first }} to {{ seeds|last }}, with ± sample standard deviation and min–max.</p>
+        <p class="card-sub">From results/metrics.json ({{ created_at|msdatetime }}). Per-second columns count the {{ test_seconds }} scored seconds of each test session; per-session columns treat a session as detected when at least one alert fired. Autoencoder rows: mean over seeds {{ seeds|first }} to {{ seeds|last }}, with ± sample standard deviation and min–max.</p>
       </div>
     </div>
     {% for table in tables %}

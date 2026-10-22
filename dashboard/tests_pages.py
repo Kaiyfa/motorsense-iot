@@ -45,6 +45,10 @@ class PageAccessTests(TestCase):
                 for text in REMOVED_TEXT:
                     self.assertNotIn(text, html)
                 self.assertIn('EQ-001 · Bench rig, 4 DC motors', html)
+                # the display time zone, named once in the header and handed to the scripts
+                self.assertEqual(html.count('All times in Asia/Riyadh (UTC+3)'), 1)
+                self.assertIn('data-timezone="Asia/Riyadh"', html)
+                self.assertNotRegex(html, r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}')
 
     def test_login_page_is_public_and_clean(self):
         response = self.client.get(reverse('login'))

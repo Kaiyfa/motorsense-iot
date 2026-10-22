@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 
 from dashboard import calculations as calc
 from dashboard import catalog
+from dashboard import formats
 from dashboard.forms import InspectionIntervalForm, MaintenanceEntryForm
 from dashboard.ml import evaluation as ev
 from dashboard.ml.constants import (
@@ -328,7 +329,9 @@ def maintenance_page(request):
         'now': timezone.now(),
         'unchecked_alerts': calc.alerts_without_inspection(live_alerts, inspections),
         'live_alert_count': len(live_alerts),
-        'entry_form': MaintenanceEntryForm(initial={'performed_at': timezone.localtime().strftime('%Y-%m-%dT%H:%M')}),
+        'entry_form': MaintenanceEntryForm(initial={
+            'performed_at': formats.format_datetime(timezone.now(), formats.DATETIME_INPUT_FORMAT)}),
+        'input_example': formats.format_datetime(timezone.now(), formats.DATETIME_INPUT_FORMAT),
         'interval_form': InspectionIntervalForm(initial={'days': interval.days if interval else None}),
     }))
 
@@ -346,7 +349,8 @@ def maintenance_add(request):
         entry.equipment = equipment
         entry.performed_by = request.user
         entry.save()
-        messages.success(request, f'Logged {entry.get_kind_display().lower()} at {timezone.localtime(entry.performed_at):%Y-%m-%d %H:%M}.')
+        messages.success(request, f'Logged {entry.get_kind_display().lower()} at '
+                                  f'{formats.format_datetime(entry.performed_at)}.')
     else:
         for field, errors in form.errors.items():
             for error in errors:
@@ -450,7 +454,7 @@ def evaluation_page(request):
             'multiples': multiples,
             'environment': env,
             'git': metrics['git'],
-            'created_at': metrics['created_at'],
+            'created_at': parse_datetime(metrics['created_at']),
             'test_seconds': metrics['settings']['sessions']['r5_normal_05']['scored_seconds'],
         })
         for table in context['tables']:

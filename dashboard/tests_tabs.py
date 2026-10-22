@@ -12,8 +12,9 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -256,6 +257,20 @@ class NegativeFindingsJsonTests(unittest.TestCase):
         self.assertNotIn('/Users/', json.dumps(data))
 
 
+class DateFormatTests(SimpleTestCase):
+    def test_one_format_in_the_display_time_zone(self):
+        from dashboard import formats
+        with self.settings(TIME_ZONE='Asia/Riyadh'):
+            self.assertEqual(formats.format_datetime(datetime(2026, 10, 22, 4, 23, 31, tzinfo=dt_timezone.utc)),
+                             '22 Oct 2026, 07:23:31')
+            self.assertEqual(formats.format_datetime(datetime(2026, 9, 5, 21, 0, 0, tzinfo=dt_timezone.utc)),
+                             '6 Sep 2026, 00:00:00')
+            self.assertEqual(formats.timezone_label(), 'Asia/Riyadh (UTC+3)')
+        with self.settings(TIME_ZONE='Asia/Kolkata'):
+            self.assertEqual(formats.timezone_label(), 'Asia/Kolkata (UTC+5:30)')
+        self.assertEqual(formats.format_datetime(None), '')
+
+
 # --------------------------------------------------------------------------- views
 
 class TabTestCase(TestCase):
@@ -372,7 +387,7 @@ class MaintenanceViewTests(TabTestCase):
 
     def test_add_entry_and_next_inspection(self):
         when = timezone.localtime() - timedelta(days=2)
-        response = self.post('dashboard:maintenance_add', {'performed_at': when.strftime('%Y-%m-%dT%H:%M'),
+        response = self.post('dashboard:maintenance_add', {'performed_at': when.strftime('%d %b %Y, %H:%M'),
                                                             'kind': 'inspection', 'notes': 'Checked the mounts.'})
         self.assertEqual(response.status_code, 302)
         entry = MaintenanceEntry.objects.get()
@@ -381,9 +396,22 @@ class MaintenanceViewTests(TabTestCase):
         self.assertEqual(InspectionInterval.objects.get().days, 14)
         html = self.client.get(reverse('dashboard:maintenance')).content.decode()
         due = timezone.localtime(entry.performed_at + timedelta(days=14))
-        self.assertIn(due.strftime('%Y-%m-%d %H:%M'), html)
+        self.assertIn(f"{due.day} {due:%b %Y, %H:%M}:00", html)          # 22 Oct 2026, 07:23:00
         self.assertIn('Set by the operator. Not a prediction.', html)
         self.assertIn('In 1\xa0week, 4\xa0days.', html)              # 14 days after an inspection 2 days ago
+
+    def test_performed_at_uses_the_page_date_format(self):
+        form_html = self.client.get(reverse('dashboard:maintenance')).content.decode()
+        now = timezone.localtime()
+        self.assertIn(f'value="{now.day} {now:%b %Y, %H:}', form_html)
+        self.assertNotIn('datetime-local', form_html)
+        for text, expected in [('5 Oct 2026, 07:23', (5, 7, 23, 0)), ('05 Oct 2026, 07:23:31', (5, 7, 23, 31)),
+                               ('2026-10-05T07:23', (5, 7, 23, 0))]:
+            MaintenanceEntry.objects.all().delete()
+            self.post('dashboard:maintenance_add', {'performed_at': text, 'kind': 'repair'})
+            at = timezone.localtime(MaintenanceEntry.objects.get().performed_at)
+            self.assertEqual((at.day, at.hour, at.minute, at.second), expected, text)
+            self.assertEqual(str(at.tzinfo), settings.TIME_ZONE)
 
     def test_overdue_inspection(self):
         MaintenanceEntry.objects.create(equipment=self.eq, performed_at=timezone.now() - timedelta(days=20, hours=1),
@@ -458,6 +486,10 @@ class EvaluationAndSetupViewTests(TabTestCase):
         self.assertLess(html.index('Not independent trials'), html.index('What this shows'))
         self.assertLess(html.index('What this shows'), html.index('Detectors on the test sessions'))
         self.assertIn('not a significant difference', html)
+        from dashboard import formats
+        from django.utils.dateparse import parse_datetime
+        self.assertIn(f"From results/metrics.json ({formats.format_datetime(parse_datetime(metrics['created_at']))})",
+                      html)
         # the friction runs are shorter than the warm-up: 4 rows x 2 vibration cells, and the band cell of
         # the 2 rows whose reference has frequency bands
         self.assertEqual(html.count('n/a, run shorter than the warm-up'), 10)

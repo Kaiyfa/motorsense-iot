@@ -208,7 +208,7 @@ function go(i) {
 
   scrubber.value = String(i);
   scrubber.setAttribute('aria-valuetext', `${fmt.clock(r.t)}, ${state.label}`);
-  $('scrub-time').textContent = `${fmt.clock(r.t)} (${fmt.timezoneLabel()})`;
+  $('scrub-time').textContent = fmt.clock(r.t);
   $('scrub-pos').textContent = `Second ${i + 1} of ${rows.length}`;
 }
 

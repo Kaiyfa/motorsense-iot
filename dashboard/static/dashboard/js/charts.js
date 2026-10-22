@@ -106,10 +106,10 @@ const layoutPlugin = {
   },
 };
 
-// Ticks on round clock times (local time), at most maxCount of them.
+// Ticks on round clock times in the display time zone, at most maxCount of them.
 const TICK_STEPS = [10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].map((s) => s * 1000);
 function timeTicks(min, max, maxCount) {
-  const offset = new Date(min).getTimezoneOffset() * 60000;
+  const offset = -fmt.zoneOffsetMs(min);
   const step = TICK_STEPS.find((s) => (max - min) / s <= maxCount) || TICK_STEPS[TICK_STEPS.length - 1];
   const values = [];
   for (let v = Math.ceil((min - offset) / step) * step + offset; v <= max; v += step) values.push(v);

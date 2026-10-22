@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load msformat %}
 {% block title %}Maintenance · MotorSense IoT{% endblock %}
 
 {% block content %}
@@ -17,10 +18,10 @@
     <section class="card" aria-labelledby="due-title">
       <h2 id="due-title">Next inspection due</h2>
       {% if next_due %}
-        <p class="big-value num">{{ next_due|date:"Y-m-d H:i" }}</p>
+        <p class="big-value num">{{ next_due|msdatetime }}</p>
         <p class="card-sub">
           {% if next_due < now %}Overdue by {{ next_due|timesince:now }}.{% else %}In {{ next_due|timeuntil:now }}.{% endif %}
-          Last logged inspection {{ last_inspection|date:"Y-m-d H:i" }} plus {{ interval.days }} day{{ interval.days|pluralize }}.
+          Last logged inspection {{ last_inspection|msdatetime }} plus {{ interval.days }} day{{ interval.days|pluralize }}.
         </p>
       {% elif not interval %}
         <p class="big-value muted">No interval set</p>
@@ -40,7 +41,7 @@
         <button type="submit" class="btn">Save interval</button>
       </form>
       {% if interval %}
-        <p class="card-note">Set by {{ interval.set_by.username }} on {{ interval.set_at|date:"Y-m-d H:i" }}.</p>
+        <p class="card-note">Set by {{ interval.set_by.username }} on {{ interval.set_at|msdatetime }}.</p>
       {% endif %}
     </section>
 
@@ -49,7 +50,7 @@
       <form method="post" action="{% url 'dashboard:maintenance_add' %}" class="stack-form">
         {% csrf_token %}
         <div class="field">
-          <label for="id_performed_at">{{ entry_form.performed_at.label }} <span class="faint">(local time)</span></label>
+          <label for="id_performed_at">{{ entry_form.performed_at.label }} <span class="faint">(as {{ input_example }}; seconds optional)</span></label>
           {{ entry_form.performed_at }}
         </div>
         <div class="field">
@@ -72,7 +73,7 @@
     {% if unchecked_alerts %}
       <ul class="plain-list">
         {% for a in unchecked_alerts %}
-          <li><a href="{% url 'dashboard:alerts_page' %}?open={{ a.id }}&amp;filter=live"><span class="num">{{ a.started_at|date:"Y-m-d H:i:s" }}</span></a>
+          <li><a href="{% url 'dashboard:alerts_page' %}?open={{ a.id }}&amp;filter=live"><span class="num">{{ a.started_at|msdatetime }}</span></a>
             <span class="muted">· peak score {{ a.peak_score|floatformat:3 }} · {% if a.ended_at %}closed{% else %}open{% endif %} · <span class="mono">{{ a.run_label }}</span></span></li>
         {% endfor %}
       </ul>
@@ -90,7 +91,7 @@
           <tbody>
             {% for e in entries %}
               <tr>
-                <td data-label="Performed at" class="num">{{ e.performed_at|date:"Y-m-d H:i" }}</td>
+                <td data-label="Performed at" class="num">{{ e.performed_at|msdatetime }}</td>
                 <td data-label="Kind">{{ e.get_kind_display }}</td>
                 <td data-label="By">{{ e.performed_by.username }}</td>
                 <td data-label="Notes">{{ e.notes|default:"—"|linebreaksbr }}</td>
@@ -98,7 +99,7 @@
                   {% if e.performed_by_id == user.id %}
                     <form method="post" action="{% url 'dashboard:maintenance_delete' e.id %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-small" aria-label="Delete the {{ e.get_kind_display|lower }} entry of {{ e.performed_at|date:'Y-m-d H:i' }}">Delete</button>
+                      <button type="submit" class="btn btn-small" aria-label="Delete the {{ e.get_kind_display|lower }} entry of {{ e.performed_at|msdatetime }}">Delete</button>
                     </form>
                   {% endif %}
                 </td>

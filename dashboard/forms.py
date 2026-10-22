@@ -4,6 +4,7 @@ from datetime import timedelta
 from django import forms
 from django.utils import timezone
 
+from dashboard import formats
 from dashboard.models import MaintenanceEntry
 
 FUTURE_TOLERANCE = timedelta(minutes=5)
@@ -12,8 +13,11 @@ FUTURE_TOLERANCE = timedelta(minutes=5)
 class MaintenanceEntryForm(forms.ModelForm):
     performed_at = forms.DateTimeField(
         label='Performed at',
-        input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M'],
-        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        # The page's date format (22 Oct 2026, 07:23), in the time zone named in the header.
+        # A text field: a browser's datetime picker would show its own locale's format.
+        # ISO forms are still accepted.
+        input_formats=formats.DATETIME_PARSE_FORMATS + ['%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M'],
+        widget=forms.TextInput(attrs={'autocomplete': 'off', 'spellcheck': 'false'}),
     )
 
     class Meta:

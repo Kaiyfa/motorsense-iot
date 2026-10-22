@@ -46,7 +46,7 @@ function statusCell(e) {
 
 function startCell(e) {
   const t = Date.parse(e.started_at);
-  let html = `<span class="num">${fmt.date(t)} ${fmt.clock(t)}</span>`;
+  let html = `<span class="num">${fmt.dateTime(t)}</span>`;
   if (e.mode === 'replay') {
     html += `<span class="replay-chip">Replay</span><span class="cell-note">${esc(e.session_name)}</span>`;
   }
