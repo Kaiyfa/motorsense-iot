@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if mode == 'replay' %}Replay {{ replay_label }}{% else %}Live{% endif %} · Overview · MotorSense IoT{% endblock %}
+
+{% block content %}
+  <div class="notice error" id="error-notice" role="alert" hidden></div>
+
+  {% if mode == 'replay' %}
+    <section class="card transport" aria-labelledby="transport-title">
+      <h2 id="transport-title" class="visually-hidden">Replay controls</h2>
+      <form class="picker-row" method="get" action="{% url 'dashboard:replay' %}">
+        <div class="field">
+          <label for="session-picker">Recorded session</label>
+          <select id="session-picker" name="session">
+            {% for group in session_groups %}
+              <optgroup label="{{ group.role_name }}">
+                {% for s in group.sessions %}
+                  <option value="{{ s.label }}" {% if s.label == replay_label %}selected{% endif %} {% if not s.replayed %}disabled{% endif %}>
+                    {{ s.name }}{% if not s.replayed %} (not replayed yet){% endif %}
+                  </option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <noscript><button class="btn" type="submit">Open</button></noscript>
+      </form>
+
+      {% if replay_available %}
+        <div class="transport-row">
+          <button class="btn btn-primary" type="button" id="play-btn" aria-pressed="false">
+            <svg aria-hidden="true"><use href="#i-play"/></svg><span>Play</span>
+          </button>
+          <div class="segmented" role="group" aria-label="Playback speed" id="speed">
+            <button type="button" data-speed="1" aria-pressed="true">1×</button>
+            <button type="button" data-speed="10" aria-pressed="false">10×</button>
+            <button type="button" data-speed="30" aria-pressed="false">30×</button>
+          </div>
+          <button class="btn" type="button" id="jump-alert">
+            <svg aria-hidden="true"><use href="#i-jump"/></svg><span>Jump to first alert</span>
+          </button>
+        </div>
+        <div class="scrubber">
+          <label for="scrubber" class="visually-hidden">Playhead position</label>
+          <input type="range" id="scrubber" min="0" max="0" value="0" step="1">
+          <div class="scrubber-meta">
+            <span id="scrub-time" class="num">--:--:--</span>
+            <span id="scrub-pos" class="num">0 / 0</span>
+          </div>
+        </div>
+      {% else %}
+        <p class="notice">
+          The session <span class="mono">{{ replay_label }}</span> has not been replayed into the database yet.
+          Run <code>python manage.py replay_session --label {{ replay_label }}</code> and reload this page.
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if mode == 'live' or replay_available %}
+  <section class="card hero" id="hero" data-state="loading" aria-labelledby="state-kicker">
+    <div class="hero-main">
+      <div class="state-icon" id="state-icon" aria-hidden="true"><svg><use href="#i-loading"/></svg></div>
+      <div class="hero-text">
+        <p class="state-kicker" id="state-kicker">{% if mode == 'replay' %}Machine state at the playhead{% else %}Machine state{% endif %}</p>
+        <p class="state-label" id="state-label" role="status" aria-live="polite"><span class="skeleton">Loading state</span></p>
+        <p class="state-detail" id="state-detail"><span class="skeleton">Loading the latest readings and scores</span></p>
+      </div>
+      <div class="ring" id="warmup-ring" hidden>
+        <svg viewBox="0 0 84 84" aria-hidden="true">
+          <circle class="ring-track" cx="42" cy="42" r="36" fill="none" stroke-width="7"/>
+          <circle class="ring-value" id="ring-value" cx="42" cy="42" r="36" fill="none" stroke-width="7"
+                  stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="226.2"/>
+        </svg>
+        <span class="ring-label num" id="ring-label">0 s</span>
+      </div>
+    </div>
+    <dl class="hero-facts">
+      <div class="fact"><dt>In this state</dt><dd class="num" id="fact-1"><span class="skeleton">00 s</span></dd></div>
+      <div class="fact"><dt id="fact-2-label">{% if mode == 'replay' %}Recorded at{% else %}Last reading{% endif %}</dt><dd class="num" id="fact-2"><span class="skeleton">00 s ago</span></dd></div>
+      <div class="fact"><dt id="fact-3-label">{% if mode == 'replay' %}Position{% else %}Scorer{% endif %}</dt><dd class="num" id="fact-3"><span class="skeleton">Running</span></dd></div>
+    </dl>
+  </section>
+
+  <div class="overview-grid">
+    <section class="card" aria-labelledby="score-title">
+      <div class="card-head">
+        <div>
+          <h2 id="score-title">Anomaly score</h2>
+          <p class="card-sub">Reconstruction error of the autoencoder, logarithmic axis</p>
+        </div>
+        {% if mode == 'live' %}
+          <div class="segmented" role="group" aria-label="Time range" id="range">
+            <button type="button" data-minutes="5" aria-pressed="true">5 min</button>
+            <button type="button" data-minutes="30" aria-pressed="false">30 min</button>
+            <button type="button" data-minutes="120" aria-pressed="false">2 h</button>
+          </div>
+        {% else %}
+          <p class="card-sub">Whole session</p>
+        {% endif %}
+      </div>
+      <div class="chart-box">
+        <canvas id="score-chart" role="img" aria-label="Anomaly score chart"></canvas>
+        <div class="chart-empty" id="chart-empty"><span class="skeleton">Loading scores</span></div>
+      </div>
+      <div class="chart-legend" aria-hidden="true">
+        <span><span class="legend-swatch"></span>Score</span>
+        <span><span class="legend-swatch threshold"></span>Alert threshold</span>
+        <span><span class="legend-swatch episode"></span>Alert episode</span>
+        {% if mode == 'replay' %}<span><span class="legend-swatch playhead"></span>Playhead</span>{% endif %}
+      </div>
+      {% if mode == 'replay' %}
+        <p class="card-note" id="chart-note" hidden>
+          The last alert was still active when the recording ended: its band stops at the end of the data, not at the end of the alert.
+        </p>
+      {% endif %}
+      <p class="visually-hidden" id="chart-summary" aria-live="polite"></p>
+    </section>
+
+    <section class="card" aria-labelledby="changes-title">
+      <div class="card-head">
+        <div>
+          <h2 id="changes-title">What changed</h2>
+          <p class="card-sub" id="changes-sub">Last 60 s against the training baseline</p>
+        </div>
+      </div>
+      <div class="changes" id="changes">
+        {% for f in model_features %}
+          <div class="change-row" data-feature="{{ f.key }}">
+            <div class="change-head">
+              <span class="change-name">{{ f.name }}</span>
+              <span class="change-z num value" data-role="z"><span class="skeleton">+0.0 σ</span></span>
+            </div>
+            <div class="change-bar" aria-hidden="true"><div class="change-fill" data-role="bar"></div></div>
+            <div class="change-meta num">
+              <span data-role="baseline">Baseline {{ f.baseline_text }}</span>
+              <span data-role="latest"><span class="skeleton">Latest 0.000</span></span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="card-note" id="changes-note">
+        Mean of the last 60 s minus the training mean, in training standard deviations
+        (<span id="changes-scale">bar scale ±5 σ</span>). This is data, not a diagnosis.
+      </p>
+    </section>
+  </div>
+
+  <section aria-labelledby="tiles-title">
+    <h2 id="tiles-title" class="visually-hidden">Sensor readings</h2>
+    <div class="tiles" id="tiles">
+      {% for t in tiles %}
+        <article class="card tile" data-key="{{ t.key }}" aria-labelledby="tile-{{ t.key }}">
+          <div class="tile-head">
+            <h3 class="tile-name" id="tile-{{ t.key }}">{{ t.name }}</h3>
+            <span class="info">
+              <button type="button" class="info-btn" aria-describedby="info-{{ t.key }}" aria-label="About {{ t.name }}">i</button>
+              <span class="info-pop" role="tooltip" id="info-{{ t.key }}">{{ t.info }}</span>
+            </span>
+          </div>
+          <p class="tile-value num"><span class="value" data-role="value"><span class="skeleton">0.000</span></span><span class="tile-unit">{{ t.unit }}</span></p>
+          <svg class="sparkline" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path data-role="spark" d=""/></svg>
+          <p class="tile-foot num" data-role="foot"><span class="skeleton">Range over 5 min</span></p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {{ config|json_script:"overview-config" }}
+{% endblock %}
+
+{% block scripts %}
+  {% if mode == 'live' or replay_available %}
+    <script src="{% static 'dashboard/vendor/chartjs-4.4.0/chart.umd.js' %}"></script>
+    {% if mode == 'replay' %}
+      <script type="module" src="{% static 'dashboard/js/replay.js' %}"></script>
+    {% else %}
+      <script type="module" src="{% static 'dashboard/js/live.js' %}"></script>
+    {% endif %}
+  {% endif %}
+{% endblock %}

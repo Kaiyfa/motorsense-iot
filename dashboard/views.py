@@ -3,12 +3,18 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 from .models import AlertEpisode, AnomalyScore, Equipment, ScorerHeartbeat, SensorData
-from dashboard.ml.constants import ALERT_SECONDS, SEQUENCE_LENGTH
+from dashboard import catalog
+from dashboard.ml import saved_model
+from dashboard.ml.constants import (
+    ALERT_SECONDS, IDLE_CURRENT_A, MAX_GAP_SECONDS, SEQUENCE_LENGTH, WARMUP_SECONDS,
+)
 from datetime import datetime, timedelta, timezone as dt_timezone
 import hmac
 import logging
@@ -33,8 +39,11 @@ def login_view(request):
         
         if user is not None:
             auth_login(request, user)
-            next_url = request.POST.get('next') or request.GET.get('next') or 'dashboard:dashboard'
-            return redirect(next_url)
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(
+                    next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+                return redirect(next_url)
+            return redirect('dashboard:dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
     
@@ -49,358 +58,165 @@ def logout_view(request):
 
 
 
-# DASHBOARD VIEWS
+# DASHBOARD PAGES
+
+TABS = [
+    ('overview', 'Overview'),
+    ('sensors', 'Sensors'),
+    ('alerts', 'Alerts'),
+    ('maintenance', 'Maintenance'),
+    ('evaluation', 'Evaluation'),
+    ('setup', 'Setup'),
+]
+PLACEHOLDER_TABS = {key: name for key, name in TABS if key != 'overview'}
+
+MODEL_FEATURES = [
+    # model feature, display name, unit, digits
+    ('vib_rms_g', 'Vibration RMS', 'g', 3),
+    ('vib_peak_g', 'Vibration peak', 'g', 3),
+    ('current', 'Current', 'A', 3),
+]
+
+SENSOR_TILES = [
+    {'key': 'vibration_rms', 'name': 'Vibration RMS', 'unit': 'g', 'digits': 3,
+     'info': 'Model input. MPU-6050 on a breadboard resting on the chassis; RMS of one second of 200 Hz samples.'},
+    {'key': 'vibration_peak', 'name': 'Vibration peak', 'unit': 'g', 'digits': 3,
+     'info': 'Model input. Largest absolute value in one second of 200 Hz samples from the MPU-6050.'},
+    {'key': 'current', 'name': 'Current', 'unit': 'A', 'digits': 3,
+     'info': 'Model input. INA219 in series with the battery pack. Not calibrated against a reference meter, '
+             'so read it as a relative value.'},
+    {'key': 'bus_voltage', 'name': 'Pack voltage', 'unit': 'V', 'digits': 2,
+     'info': 'Displayed only, not a model input: the pack state differs between sessions by up to 0.15 V, '
+             'independent of any fault.'},
+    {'key': 'temperature', 'name': 'Temperature', 'unit': '°C', 'digits': 1,
+     'info': 'Displayed only, not a model input: it rises 3 to 5 °C per session without reaching a plateau.'},
+]
+
+
+def _tabs(active, mode, replay_label=None):
+    query = f'?mode=replay&session={replay_label}' if mode == 'replay' and replay_label else ''
+    tabs = []
+    for key, name in TABS:
+        if key == 'overview':
+            href = (reverse('dashboard:replay') + (f'?session={replay_label}' if replay_label else '')
+                    if mode == 'replay' else reverse('dashboard:dashboard'))
+        else:
+            href = reverse('dashboard:tab', args=[key]) + query
+        tabs.append({'key': key, 'name': name, 'href': href})
+    return tabs
+
+
+def _model_metadata():
+    """Training baseline and threshold of the saved model (JSON files only; no TensorFlow)."""
+    try:
+        scaler, threshold, _ = saved_model.read_metadata()
+    except (OSError, ValueError, KeyError):
+        return None, None
+    return scaler, threshold
+
+
+def _overview_context(request, mode, replay_label=None, extra_config=None):
+    scaler, threshold = _model_metadata()
+    features = []
+    for key, name, unit, digits in MODEL_FEATURES:
+        base = scaler.get(key) if scaler else None
+        features.append({
+            'key': key, 'name': name,
+            'baseline_text': (f"{base['mean']:.{digits}f} {unit} ± {base['std']:.{digits}f}"
+                              if base else 'not available'),
+        })
+    config = {
+        'mode': mode,
+        'equipmentId': LIVE_EQUIPMENT_ID,
+        'pollMs': 2000,
+        'liveMaxAgeSeconds': LIVE_MAX_AGE_SECONDS,
+        'warmupSeconds': WARMUP_SECONDS,
+        'sequenceLength': SEQUENCE_LENGTH,
+        'alertSeconds': ALERT_SECONDS,
+        'idleCurrentA': IDLE_CURRENT_A,
+        'maxGapSeconds': MAX_GAP_SECONDS,
+        'changesWindowSeconds': 60,
+        'tileWindowSeconds': 300,
+        'threshold': threshold,
+        'baseline': scaler,
+        'featureDigits': {key: digits for key, _, _, digits in MODEL_FEATURES},
+        'featureUnits': {key: unit for key, _, unit, _ in MODEL_FEATURES},
+        'tiles': [{'key': t['key'], 'digits': t['digits']} for t in SENSOR_TILES],
+        'urls': {
+            'status': reverse('dashboard:live_status'),
+            'scores': reverse('dashboard:live_scores'),
+            'history': reverse('dashboard:live_sensor_history'),
+        },
+    }
+    config.update(extra_config or {})
+    return {
+        'mode': mode,
+        'active_tab': 'overview',
+        'tabs': _tabs('overview', mode, replay_label),
+        'replay_label': replay_label,
+        'model_features': features,
+        'tiles': SENSOR_TILES,
+        'config': config,
+    }
+
 
 @login_required(login_url='login')
 def dashboard(request):
-    """Main dashboard view"""
-    context = {
-        'equipment_count': Equipment.objects.count(),
-        'sensor_data_count': SensorData.objects.count(),
-        'user': request.user,
-    }
-    return render(request, 'dashboard/dashboard.html', context)
-
-
-# API ENDPOINTS
-
-@login_required(login_url='login')
-def index(request):
-    """API health check endpoint"""
-    equipment_count = Equipment.objects.count()
-    sensor_data_count = SensorData.objects.count()
-    
-    return JsonResponse({
-        'equipment_count': equipment_count,
-        'sensor_data_count': sensor_data_count,
-        'status': 'API is working',
-        'user': request.user.username
-    })
+    """Overview, Live mode."""
+    return render(request, 'dashboard/overview.html', _overview_context(request, 'live'))
 
 
 @login_required(login_url='login')
-def equipment_list(request):
-    """Equipment list API endpoint"""
-    equipment = Equipment.objects.all().values('equipment_id', 'name', 'status')
-    return JsonResponse(list(equipment), safe=False)
+def replay_overview(request):
+    """Overview, Replay mode: the recorded scores and readings of one session."""
+    replayed = set(AnomalyScore.objects.filter(mode='replay').values_list('run_label', flat=True).distinct())
+    sessions = [dict(s, replayed=s['label'] in replayed) for s in catalog.REPLAY_SESSIONS]
+    labels = [s['label'] for s in sessions]
 
-
-@login_required(login_url='login')
-def get_prediction(request):
-    """
-    Generate comprehensive AI prediction with LSTM model
-    
-    Returns:
-        JSON with prediction, recommendations, alerts, cost impact, and trend metrics
-    """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
+    label = request.GET.get('session')
+    if label not in labels:
+        label = next((s['label'] for s in sessions if s['replayed']), labels[0])
     try:
-        # Imported here so the web process loads TensorFlow only when this
-        # simulated-mode endpoint is used, not at startup.
-        from dashboard.ml.ml_service import prediction_service
+        pos = int(request.GET['pos'])
+    except (KeyError, ValueError):
+        pos = None
 
-        # Extract request parameters
-        equipment_type = request.POST.get('equipment_type', 'Pump')
-        equipment_id = request.POST.get('equipment_id', 'EQ-001')
-        location = request.POST.get('location', '')
-        
-        logger.info(f"🔄 Prediction request: {equipment_type} {equipment_id} @ {location}")
-        
-        # Load model if not already loaded
-        if not prediction_service.model_loaded:
-            logger.info("📦 Loading LSTM model...")
-            if not prediction_service.load_model():
-                raise Exception("Failed to load LSTM model")
-        
-        # Generate prediction using LSTM model
-        prediction_result = prediction_service.predict_from_equipment(
-            equipment_id=equipment_id,
-            equipment_type=equipment_type
-        )
-        
-        # Add metadata
-        prediction_result['location'] = location
-        prediction_result['timestamp'] = datetime.now().isoformat()
-        prediction_result['user'] = request.user.username
-        
-        # Generate AI recommendations
-        recommendations = generate_ai_recommendations(prediction_result)
-        
-        # Generate contextual alerts
-        alerts = generate_contextual_alerts(prediction_result)
-        
-        # Calculate cost impact analysis
-        cost_impact = calculate_cost_impact(prediction_result, recommendations)
-        
-        # Calculate trend metrics
-        trend_metrics = calculate_trend_metrics(prediction_result)
-        
-        logger.info(f"✅ Prediction complete: RUL={prediction_result['rul']}, Status={prediction_result['status']}")
-        
-        # Return comprehensive response
-        return JsonResponse({
-            'success': True,
-            'prediction': prediction_result,
-            'recommendations': recommendations,
-            'alerts': alerts,
-            'costImpact': cost_impact,
-            'trendMetrics': trend_metrics
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Prediction error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+    groups = []
+    for s in sessions:
+        if not groups or groups[-1]['role_name'] != s['role_name']:
+            groups.append({'role_name': s['role_name'], 'sessions': []})
+        groups[-1]['sessions'].append(s)
+
+    available = label in replayed
+    context = _overview_context(request, 'replay', label, {
+        'session': label,
+        'sessionName': catalog.session_name(label),
+        'pos': pos,
+        'urls': {
+            'replay': reverse('dashboard:replay_detail', args=[label]),
+            'replayReadings': reverse('dashboard:replay_readings', args=[label]),
+        },
+    })
+    context.update({'session_groups': groups, 'replay_available': available})
+    return render(request, 'dashboard/overview.html', context)
 
 
-# AI RECOMMENDATION ENGINE
-
-def generate_ai_recommendations(prediction: dict) -> list:
-    """
-    Generate intelligent maintenance recommendations based on prediction
-    
-    Matches Replit's recommendation structure with:
-    - Priority levels (HIGH/MEDIUM/LOW)
-    - Cost impact estimates
-    - Estimated savings
-    - Actionable steps
-    """
-    recommendations = []
-    rul = prediction['rul']
-    status = prediction['status']
-    health = prediction['health_metrics']
-    equipment_id = prediction['equipment_id']
-    
-    # CRITICAL STATUS: Immediate action required
-    if status == 'critical':
-        recommendations.append({
-            'id': 'critical_maintenance',
-            'priority': 'HIGH',
-            'title': 'Schedule Preventive Inspection',
-            'description': f'Critical wear patterns detected on {equipment_id}. RUL critically low at {rul:.1f} cycles. Immediate inspection required to prevent catastrophic failure.',
-            'action': 'Schedule emergency inspection within 24-48 hours and prepare replacement parts (bearings, seals, gaskets).',
-            'costImpact': '$50,000 - $75,000',
-            'estimatedSavings': '$500,000 (avoided unplanned downtime)'
-        })
-    
-    # CAUTION STATUS: Plan maintenance
-    elif status == 'caution':
-        recommendations.append({
-            'id': 'preventive_maintenance',
-            'priority': 'MEDIUM',
-            'title': 'Schedule Preventive Inspection',
-            'description': f'Moderate wear patterns detected on {equipment_id}. Schedule inspection within 2-3 weeks to prevent unexpected failures.',
-            'action': 'Schedule inspection within 2-3 weeks and prepare replacement parts.',
-            'costImpact': '$2,500 - $3,500',
-            'estimatedSavings': '$15,000 (avoided downtime)'
-        })
-    
-    # TEMPERATURE HEALTH: Operating parameter optimization
-    if health['temperatureHealth'] > 80:
-        temp_diff = int((health['temperatureHealth'] - 72) * 0.25)
-        recommendations.append({
-            'id': 'optimize_temperature',
-            'priority': 'MEDIUM',
-            'title': 'Optimize Operating Parameters',
-            'description': f'Current operating temperature is {temp_diff}% higher than optimal range. Elevated temperatures accelerate component degradation.',
-            'action': 'Reduce operating speed by 5% and increase cooling system efficiency. Monitor temperature trends over next 48 hours.',
-            'costImpact': '$1,200 - $1,800',
-            'estimatedSavings': '$5,000 annually (reduced wear)'
-        })
-    elif health['temperatureHealth'] < 60:
-        recommendations.append({
-            'id': 'investigate_cooling',
-            'priority': 'MEDIUM',
-            'title': 'Investigate Cooling System',
-            'description': f'Temperature readings indicate potential cooling system inefficiency. Current health at {health["temperatureHealth"]:.1f}%.',
-            'action': 'Inspect cooling system, check coolant levels, and verify thermal sensor accuracy.',
-            'costImpact': '$800 - $1,500',
-            'estimatedSavings': '$3,000 (prevented thermal damage)'
-        })
-    
-    # SPEED HEALTH: Mechanical inspection
-    if health['speedHealth'] < 70:
-        recommendations.append({
-            'id': 'mechanical_inspection',
-            'priority': 'MEDIUM',
-            'title': 'Mechanical System Inspection',
-            'description': f'Speed health at {health["speedHealth"]:.1f}% indicates potential mechanical wear. Motor speed variations detected outside normal parameters.',
-            'action': 'Check motor bearings, drive system alignment, and lubrication levels. Schedule vibration analysis.',
-            'costImpact': '$1,500 - $2,500',
-            'estimatedSavings': '$8,000 (prevented bearing failure)'
-        })
-    
-    # SENSOR CALIBRATION: Routine maintenance
-    if health['speedHealth'] < 75 or health['pressureHealth'] < 75:
-        recommendations.append({
-            'id': 'sensor_calibration',
-            'title': 'Update Sensor Calibration',
-            'priority': 'LOW',
-            'description': 'Sensors have been in operation for extended period without recalibration. Sensor drift may affect prediction accuracy.',
-            'action': 'Schedule sensor calibration during next planned maintenance window.',
-            'costImpact': '$400 - $600',
-            'estimatedSavings': None
-        })
-    
-    # HEALTHY STATUS: Continue monitoring
-    if status == 'healthy':
-        recommendations.append({
-            'id': 'routine_monitoring',
-            'title': 'Continue Routine Monitoring',
-            'priority': 'LOW',
-            'description': f'Equipment {equipment_id} is operating within normal parameters. RUL: {rul:.1f} cycles remaining.',
-            'action': 'Maintain current monitoring schedule and operating conditions. Next inspection in 4-6 weeks.',
-            'costImpact': '$200 - $400',
-            'estimatedSavings': None
-        })
-    
-    return recommendations
-
-
-# ALERT GENERATION SYSTEM
-
-def generate_contextual_alerts(prediction: dict) -> list:
-    """
-    Generate contextual alerts based on sensor thresholds and equipment status
-    
-    Returns alerts with:
-    - Severity levels (CRITICAL/WARNING/INFO)
-    - Specific sensor anomalies
-    - Timestamps
-    - Equipment context
-    """
-    alerts = []
-    rul = prediction['rul']
-    health = prediction['health_metrics']
-    equipment_id = prediction['equipment_id']
-    
-    # CRITICAL RUL ALERT
-    if rul < 30:
-        alerts.append({
-            'id': f'alert_critical_rul_{int(datetime.now().timestamp())}',
-            'severity': 'critical',
-            'title': 'Critical: Equipment Approaching Failure',
-            'description': f'RUL has dropped to {rul:.1f} cycles. Equipment may fail within {int(rul)} operational cycles. Immediate action required.',
-            'equipmentId': equipment_id,
-            'timestamp': '15 minutes ago',
-        })
-    
-    # PERFORMANCE DEGRADATION WARNING
-    if health['temperatureHealth'] < 60:
-        alerts.append({
-            'id': f'alert_degradation_{int(datetime.now().timestamp())}',
-            'severity': 'warning',
-            'title': 'Warning: Gradual Performance Degradation',
-            'description': f'Equipment health at {health["temperatureHealth"]:.1f}%. Monitor closely for further degradation. Temperature sensors showing elevated readings.',
-            'equipmentId': equipment_id,
-            'timestamp': '15 minutes ago',
-        })
-    
-    # SCHEDULED MAINTENANCE INFO
-    if rul < 60:
-        alerts.append({
-            'id': f'alert_maintenance_{int(datetime.now().timestamp())}',
-            'severity': 'info',
-            'title': 'Scheduled Maintenance Window',
-            'description': 'Routine maintenance scheduled for next week. Preventive inspection recommended based on current equipment health.',
-            'equipmentId': equipment_id,
-            'timestamp': '2 days ago',
-        })
-    
-    # SENSOR ANOMALY WARNING
-    if health['speedHealth'] < 70:
-        alerts.append({
-            'id': f'alert_sensor_anomaly_{int(datetime.now().timestamp())}',
-            'severity': 'warning',
-            'title': 'Sensor Reading Anomaly',
-            'description': 'Sensor_21 showing unusual fluctuation patterns over the past 48 hours. Speed sensor readings vary outside normal operational range.',
-            'equipmentId': equipment_id,
-            'timestamp': '3 days ago',
-        })
-    
-    return alerts
-
-
-# COST IMPACT ANALYSIS
-
-def calculate_cost_impact(prediction: dict, recommendations: list) -> dict:
-    """
-    Calculate comprehensive cost impact analysis
-    
-    Returns:
-    - Total potential cost
-    - Estimated savings
-    - ROI percentage
-    """
-    total_cost = 0
-    total_savings = 0
-    
-    for rec in recommendations:
-        # Parse cost range (e.g., "$2,500 - $3,500")
-        if rec.get('costImpact'):
-            try:
-                cost_str = rec['costImpact'].replace('$', '').replace(',', '')
-                if ' - ' in cost_str:
-                    low, high = cost_str.split(' - ')
-                    avg_cost = (float(low) + float(high)) / 2
-                else:
-                    avg_cost = float(cost_str)
-                total_cost += avg_cost
-            except ValueError:
-                pass
-        
-        # Parse savings (e.g., "$15,000 (avoided downtime)")
-        if rec.get('estimatedSavings'):
-            try:
-                savings_str = rec['estimatedSavings'].split('(')[0]
-                savings_str = savings_str.replace('$', '').replace(',', '').strip()
-                total_savings += float(savings_str)
-            except ValueError:
-                pass
-    
-    # Calculate ROI
-    roi = (total_savings / total_cost * 100) if total_cost > 0 else 0
-    
-    return {
-        'totalCost': f"${int(total_cost):,}",
-        'estimatedSavings': f"${int(total_savings):,}",
-        'roi': f"{int(roi)}%"
-    }
-
-
-# TREND METRICS CALCULATION
-
-def calculate_trend_metrics(prediction: dict) -> dict:
-    """
-    Calculate degradation rate and health trends
-    
-    In production, this would analyze historical predictions
-    For now, calculates based on current state
-    """
-    rul = prediction['rul']
-    health = prediction['health_metrics']
-    
-    # Calculate average health across all metrics
-    avg_health = (
-        health['speedHealth'] + 
-        health['temperatureHealth'] + 
-        health['pressureHealth']
-    ) / 3
-    
-    # Estimate degradation rate
-    # Assuming max RUL of 125 cycles (C-MAPSS dataset range)
-    degradation_rate = ((125 - rul) / 125) * 2  # Percentage per prediction
-    
-    return {
-        'degradationRate': round(degradation_rate, 2),
-        'averageHealth': round(avg_health, 1)
-    }
+@login_required(login_url='login')
+def tab_placeholder(request, tab):
+    """Sections that are built in part 2 of the dashboard rebuild."""
+    if tab not in PLACEHOLDER_TABS:
+        raise Http404('Unknown section')
+    replay_label = request.GET.get('session') if request.GET.get('mode') == 'replay' else None
+    if replay_label not in [s['label'] for s in catalog.REPLAY_SESSIONS]:
+        replay_label = None
+    mode = 'replay' if replay_label else 'live'
+    return render(request, 'dashboard/placeholder.html', {
+        'mode': mode,
+        'active_tab': tab,
+        'tabs': _tabs(tab, mode, replay_label),
+        'replay_label': replay_label,
+        'page_name': PLACEHOLDER_TABS[tab],
+    })
 
 
 # SENSOR INGEST (Raspberry Pi)
@@ -583,25 +399,6 @@ def live_reading(request):
         'age_seconds': age_seconds,
         'reading': _serialize_reading(latest),
     })
-
-
-@login_required(login_url='login')
-def live_prediction(request):
-    """No anomaly model has been trained on the testbed data yet."""
-    return JsonResponse({'status': 'model_not_available'})
-
-
-@login_required(login_url='login')
-def live_dashboard(request):
-    """
-    Live Sensor Dashboard view
-    Displays real-time sensor readings and continuous monitoring
-    """
-    context = {
-        'user': request.user,
-        'dashboard_type': 'live',
-    }
-    return render(request, 'dashboard/dashboard_live.html', context)
 
 
 @login_required(login_url='login')

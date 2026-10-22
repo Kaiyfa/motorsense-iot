@@ -6,18 +6,13 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
-    # Main dashboards
-    path('', views.dashboard, name='dashboard'),  # Simulated/Historical dashboard
-    path('live/', views.live_dashboard, name='live_dashboard'),  # Live sensor dashboard
-    
-    # API endpoints - Simulated/Historical
-    path('api/', views.index, name='api_index'),
-    path('api/equipment/', views.equipment_list, name='equipment_list'),
-    path('api/prediction/', views.get_prediction, name='get_prediction'),
-    
+    # Pages
+    path('', views.dashboard, name='dashboard'),                    # Overview, Live
+    path('replay/', views.replay_overview, name='replay'),          # Overview, Replay
+    path('<slug:tab>/', views.tab_placeholder, name='tab'),         # Sensors, Alerts, ... (part 2)
+
     # API endpoints - Live Sensors
     path('api/live/reading/', views.live_reading, name='live_reading'),
-    path('api/live/prediction/', views.live_prediction, name='live_prediction'),
     path('api/live/history/', views.live_sensor_history, name='live_sensor_history'),
 
     # Sensor ingest (Raspberry Pi, token auth)
