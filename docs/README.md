@@ -59,6 +59,29 @@ Removed in the rebuild: the simulated mode and its endpoints (`/api/prediction/`
 (`dashboard/ml/ml_service.py`), and every figure or claim that was not measured on this rig
 (model accuracy, remaining useful life, failure probability, costs and savings).
 
+Under the hero, a state timeline strip shares the score chart's time axis: consecutive
+segments Offline, Idle, Warm-up, Running (not scored yet), Normal and Alert, plus Not scored
+for readings the scorer did not process. They are built only from stored scores and readings
+(`dashboard/timeline.py`; `/api/live/timeline/?minutes=N`, and `timeline` in
+`/api/replay/<label>/`). A gap of more than 5 s between stored seconds is Offline when no
+reading was stored in it. Hover or focus the strip (arrow keys) for each segment's start,
+end and duration. When there is nothing to score, the chart area shows the same segments
+with a sentence on what is going on. While the machine is idle, warming up or offline,
+"What changed" is dimmed and labelled, because deviations from a running baseline mean
+nothing then. In an alert, the hero shows when it started, how long it has lasted and the
+largest deviation from the "What changed" panel; it never names a cause. In Replay the chart
+and the strip stop at the playhead unless "Show whole session" is ticked.
+
+### Static files and browser caching
+
+Every static URL carries a content version, so a browser never runs stale JavaScript or CSS
+after an update. `{% vstatic 'path' %}` (in `dashboard/templatetags/versioned_static.py`)
+appends `?v=<first 12 hex digits of the SHA-256 of the file>`, recomputed whenever the file
+changes on disk. The JavaScript modules import each other through bare names such as
+`ms/overview.js`, which an import map in the page (`{% js_importmap %}`) resolves to versioned
+URLs; a version on the entry script alone would not reach the modules it imports. New
+modules must be added to `JS_MODULES` in that file. No build step or extra package is needed.
+
 Screenshots of each state are in [screenshots/](screenshots/README.md).
 
 ## Live scoring and alerts
