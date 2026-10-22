@@ -239,6 +239,19 @@ class ReplayTests(TestCase):
                          {'r9_fault_warmup', 'r9_fault'})
         self.assertEqual(AnomalyScore.objects.order_by('timestamp').first().timestamp, T0)
 
+    def test_episode_open_at_end_of_recording_is_flagged(self):
+        add_session(self.eq, 'r9_open_end', 100_000, main_vib=[QUIET] * 60 + [LOUD] * 60)
+        summary = scoring_service.replay_session('r9_open_end', FAKE_DETECTOR)
+        episode = AlertEpisode.objects.get(run_label='r9_open_end')
+        self.assertTrue(episode.open_at_end_of_recording)
+        last = AnomalyScore.objects.filter(run_label='r9_open_end').order_by('-timestamp').first()
+        self.assertEqual(episode.ended_at, last.timestamp)
+        self.assertTrue(last.alert_active)
+        self.assertEqual(len(summary.episodes), 1)
+        # an episode that ends inside the recording is not flagged
+        scoring_service.replay_session('r9_fault', FAKE_DETECTOR)
+        self.assertFalse(AlertEpisode.objects.get(run_label='r9_fault').open_at_end_of_recording)
+
     def test_replay_of_unknown_or_warmup_label_is_rejected(self):
         with self.assertRaises(ValueError):
             scoring_service.replay_session('nope', FAKE_DETECTOR)
@@ -352,7 +365,9 @@ class AnomalyApiTests(TestCase):
         replay = self.get('alerts', query='?mode=replay').json()
         self.assertEqual(replay['count'], 1)
         self.assertEqual(set(replay['episodes'][0]), {'equipment_id', 'started_at', 'ended_at', 'active',
-                                                      'peak_score', 'run_label', 'mode'})
+                                                      'peak_score', 'run_label', 'mode',
+                                                      'open_at_end_of_recording'})
+        self.assertFalse(replay['episodes'][0]['open_at_end_of_recording'])
         self.assertEqual(replay['episodes'][0]['mode'], 'replay')
         self.assertEqual(self.get('alerts', query='?mode=all').json()['count'], 1)
         self.assertEqual(self.get('alerts', query='?mode=bogus').status_code, 400)

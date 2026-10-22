@@ -680,6 +680,7 @@ def _episode_json(row):
         'peak_score': row.peak_score,
         'run_label': row.run_label,
         'mode': row.mode,
+        'open_at_end_of_recording': row.open_at_end_of_recording,
     }
 
 

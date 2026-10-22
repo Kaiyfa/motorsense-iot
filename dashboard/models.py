@@ -329,6 +329,11 @@ class AlertEpisode(models.Model):
     peak_score = models.FloatField()
     run_label = models.CharField(max_length=64, blank=True)
     mode = models.CharField(max_length=8, choices=AnomalyScore.MODE_CHOICES)
+    open_at_end_of_recording = models.BooleanField(
+        default=False,
+        help_text="Replay only: the alert was still active at the last reading of the recording, "
+                  "so ended_at is the end of the data, not the end of the alert",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

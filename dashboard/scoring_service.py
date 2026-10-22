@@ -49,12 +49,13 @@ class Writer:
     def adopt(self, episode, row):
         self.episode_rows[id(episode)] = row
 
-    def _close(self, episode):
+    def _close(self, episode, open_at_end_of_recording=False):
         row = self.episode_rows.pop(id(episode), None)
         if row is not None:
             row.ended_at = episode.ended_at
             row.peak_score = episode.peak_score
-            row.save(update_fields=['ended_at', 'peak_score'])
+            row.open_at_end_of_recording = open_at_end_of_recording
+            row.save(update_fields=['ended_at', 'peak_score', 'open_at_end_of_recording'])
 
     def write(self, results, final_ended=()):
         AnomalyScore.objects.bulk_create([
@@ -77,8 +78,8 @@ class Writer:
                 row = self.episode_rows[id(r.peak_updated)]
                 row.peak_score = r.peak_updated.peak_score
                 row.save(update_fields=['peak_score'])
-        for episode in final_ended:
-            self._close(episode)
+        for episode in final_ended:  # closed by the end of a replayed recording
+            self._close(episode, open_at_end_of_recording=True)
 
 
 # --------------------------------------------------------------------------- replay
