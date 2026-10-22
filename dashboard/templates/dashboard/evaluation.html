@@ -87,7 +87,7 @@
     {% if not findings_available %}
       <p class="notice">results/negative_findings.json was not found. Run <code>python analysis/negative_findings.py &lt;raw data directory&gt;</code>.</p>
     {% else %}
-      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.like_with_like %} Like with like: {{ findings_meta.like_with_like }}; such cells read "n/a, runs not comparable".{% endif %}</p>
+      <p class="card-sub">From results/negative_findings.json, written by {{ findings_meta.script }} from the raw Pi logs. Values are plateau means: {{ findings_meta.plateau_rule }}. Percentages are the {{ findings_meta.percent }}.{% if findings_meta.like_with_like %} Vibration and frequency bands are compared only like with like, between runs in the same phase (both after their warm-up segment, or both short runs of the same length); otherwise the cells read "n/a, runs not comparable". Current is always compared.{% endif %}</p>
 
       {% if normal_spread %}
         <h3 class="findings-title">Spread between normal sessions</h3>
