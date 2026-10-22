@@ -188,6 +188,13 @@ class NoTensorFlowTests(unittest.TestCase):
         result = subprocess.run([sys.executable, '-c', code], cwd=REPO, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_web_views_do_not_import_tensorflow(self):
+        code = ('import os, sys; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "monitor.settings"); '
+                'import django; django.setup(); import monitor.urls, dashboard.views; '
+                'sys.exit(1 if "tensorflow" in sys.modules else 0)')
+        result = subprocess.run([sys.executable, '-c', code], cwd=REPO, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 # --------------------------------------------------------------------------- database
 

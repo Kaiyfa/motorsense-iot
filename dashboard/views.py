@@ -8,7 +8,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 from .models import AlertEpisode, AnomalyScore, Equipment, ScorerHeartbeat, SensorData
-from dashboard.ml.ml_service import prediction_service
 from datetime import datetime, timedelta, timezone as dt_timezone
 import hmac
 import logging
@@ -97,6 +96,10 @@ def get_prediction(request):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
+        # Imported here so the web process loads TensorFlow only when this
+        # simulated-mode endpoint is used, not at startup.
+        from dashboard.ml.ml_service import prediction_service
+
         # Extract request parameters
         equipment_type = request.POST.get('equipment_type', 'Pump')
         equipment_id = request.POST.get('equipment_id', 'EQ-001')
