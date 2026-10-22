@@ -81,9 +81,21 @@ const overlayPlugin = {
   },
 };
 
+// Ticks on round clock times (local time), at most maxCount of them.
+const TICK_STEPS = [10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].map((s) => s * 1000);
+function timeTicks(min, max, maxCount) {
+  const offset = new Date(min).getTimezoneOffset() * 60000;
+  const step = TICK_STEPS.find((s) => (max - min) / s <= maxCount) || TICK_STEPS[TICK_STEPS.length - 1];
+  const values = [];
+  for (let v = Math.ceil((min - offset) / step) * step + offset; v <= max; v += step) values.push(v);
+  return { step, values };
+}
+
 export function createScoreChart(canvas) {
   let colours = palette();
   let threshold = null;
+  let tickStep = 60000;
+  let maxTicks = 7;
 
   const chart = new Chart(canvas, {
     type: 'line',
@@ -97,7 +109,12 @@ export function createScoreChart(canvas) {
       scales: {
         x: {
           type: 'linear',
-          ticks: { maxTicksLimit: 6, maxRotation: 0, callback: (v) => fmt.shortClock(v) },
+          ticks: { maxRotation: 0, callback: (v) => (tickStep < 60000 ? fmt.clock(v) : fmt.shortClock(v)) },
+          afterBuildTicks: (axis) => {
+            const { step, values } = timeTicks(axis.min, axis.max, maxTicks);
+            tickStep = step;
+            axis.ticks = values.map((value) => ({ value }));
+          },
           grid: { display: false },
         },
         y: {
@@ -107,7 +124,9 @@ export function createScoreChart(canvas) {
             autoSkip: true,
             callback: (v) => {
               const exp = Math.log10(v);
-              return Math.abs(exp - Math.round(exp)) < 1e-9 ? fmt.score(v) : '';
+              if (Math.abs(exp - Math.round(exp)) > 1e-9) return '';
+              const e = Math.round(exp);
+              return e >= 0 ? String(10 ** e) : (10 ** e).toFixed(-e);
             },
           },
         },
@@ -169,7 +188,7 @@ export function createScoreChart(canvas) {
       const o = chart.options;
       o.scales.x.min = xMin;
       o.scales.x.max = xMax;
-      o.scales.x.ticks.maxTicksLimit = narrow ? 4 : 7;
+      maxTicks = narrow ? 4 : 7;
       const values = points.map((p) => p.y).filter((v) => v !== null && v > 0);
       if (threshold !== null) values.push(threshold);
       if (values.length) {
@@ -185,12 +204,16 @@ export function createScoreChart(canvas) {
 }
 
 // Sparkline into an SVG path (viewBox 0 0 100 40). Gaps (null) break the line.
-export function sparkPath(series, xMin, xMax) {
+// minSpan keeps small sensor noise from being stretched to the full height.
+export function sparkPath(series, xMin, xMax, minSpan = 0) {
   const values = series.map((p) => p.y).filter((v) => v !== null && Number.isFinite(v));
   if (!values.length || !(xMax > xMin)) return '';
   let lo = Math.min(...values);
   let hi = Math.max(...values);
-  if (hi === lo) { hi += 1e-9; lo -= 1e-9; }
+  const span = Math.max(hi - lo, minSpan, 1e-9);
+  const mid = (hi + lo) / 2;
+  lo = mid - span / 2;
+  hi = mid + span / 2;
   const pad = 3;
   let d = '';
   let pen = false;

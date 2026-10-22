@@ -1,6 +1,6 @@
 // Replay mode: steps through the recorded scores and readings of one session.
 // Reads /api/replay/<label>/ and /api/replay/<label>/readings/ only; nothing here is live.
-import { config, createOverview, describeState, computeChanges, getJSON, showError } from './overview.js';
+import { config, createOverview, describeState, computeChanges, getJSON, showError, STATE_NAMES } from './overview.js';
 import * as fmt from './format.js';
 
 const view = createOverview();
@@ -153,7 +153,8 @@ function go(i) {
 
   const state = describeState({ ...r, threshold });
   view.renderHero(state, [
-    { value: fmt.duration((r.t - rows[r.stateStart].t) / 1000), small: `since ${fmt.clock(rows[r.stateStart].t)}` },
+    { label: `${STATE_NAMES[r.machine_state] || 'In this state'} for`,
+      value: fmt.duration((r.t - rows[r.stateStart].t) / 1000), small: `since ${fmt.clock(rows[r.stateStart].t)}` },
     { value: fmt.clock(r.t), small: fmt.date(r.t) },
     { value: `${i + 1} / ${rows.length}`, small: `${fmt.duration((r.t - t0) / 1000)} into the recording` },
   ]);
@@ -172,7 +173,8 @@ function go(i) {
   const note = $('chart-note');
   if (note) note.hidden = !open;
 
-  view.renderChanges(computeChanges(readings, r.t), `No readings in the ${config.changesWindowSeconds} s before the playhead`);
+  view.renderChanges(computeChanges(readings, r.t), `No readings in the ${config.changesWindowSeconds} s before the playhead`,
+    r.machine_state);
   view.renderTiles(readings, r.t, 'No readings in the 5 min before the playhead');
 
   scrubber.value = String(i);

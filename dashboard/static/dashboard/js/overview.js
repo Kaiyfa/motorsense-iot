@@ -20,6 +20,8 @@ const FEATURE_KEYS = { vib_rms_g: 'vibration_rms', vib_peak_g: 'vibration_peak',
  * Machine state of one scored second, in words. `row` has machine_state,
  * alert_active, score, threshold, plus the derived run lengths.
  */
+export const STATE_NAMES = { idle: 'Idle', warming_up: 'Warming up', running: 'Running' };
+
 export function describeState(row) {
   const threshold = row.threshold;
   switch (row.machine_state) {
@@ -129,13 +131,15 @@ export function createOverview() {
       const elapsed = Math.min(Math.max(state.warmupElapsed, 0), config.warmupSeconds);
       ring.hidden = false;
       $('ring-value').setAttribute('stroke-dashoffset', String(ringCircumference * (1 - elapsed / config.warmupSeconds)));
-      $('ring-label').textContent = `${Math.round(elapsed)} / ${config.warmupSeconds} s`;
+      $('ring-label').innerHTML = `<span class="ring-num">${Math.round(elapsed)} s</span>` +
+        `<span class="ring-of">of ${config.warmupSeconds} s</span>`;
       ring.setAttribute('aria-label', `Warm-up ${Math.round(elapsed)} of ${config.warmupSeconds} seconds`);
     } else {
       ring.hidden = true;
     }
 
     facts.forEach((f, i) => {
+      if (f.label) setText($(`fact-${i + 1}-label`), f.label);
       const dd = $(`fact-${i + 1}`);
       const html = f.small ? `${escapeHtml(f.value)}<small>${escapeHtml(f.small)}</small>` : escapeHtml(f.value);
       if (dd.innerHTML !== html) dd.innerHTML = html;
@@ -156,7 +160,9 @@ export function createOverview() {
     setText($('chart-summary'), summary);
   }
 
-  function renderChanges(changes, emptyMessage) {
+  function renderChanges(changes, emptyMessage, machineState) {
+    const context = $('changes-context');
+    if (context) context.hidden = !(machineState && machineState !== 'running');
     const usable = changes.filter((c) => c.z !== null);
     const scale = Math.max(5, Math.ceil(Math.max(0, ...usable.map((c) => Math.abs(c.z)))));
     $('changes-scale').textContent = `bar scale ±${scale} σ`;
@@ -197,7 +203,7 @@ export function createOverview() {
         continue;
       }
       setText(valueEl, fmt.fixed(values[values.length - 1], tile.digits));
-      el.querySelector('[data-role="spark"]').setAttribute('d', sparkPath(series, fromMs, endMs));
+      el.querySelector('[data-role="spark"]').setAttribute('d', sparkPath(series, fromMs, endMs, tile.minSpan));
       setText(el.querySelector('[data-role="foot"]'),
         `${fmt.fixed(Math.min(...values), tile.digits)} to ${fmt.fixed(Math.max(...values), tile.digits)} over 5 min`);
     }

@@ -262,6 +262,8 @@ main.page {
 }
 .card-sub { font-size: var(--fs-sm); color: var(--text-muted); }
 .card-note { margin-top: var(--space-4); font-size: var(--fs-xs); color: var(--text-faint); }
+.card-note.context { color: var(--text-muted); font-size: var(--fs-sm); }
+.card-note[hidden] { display: none; }
 
 /* ------------------------------------------------------------------ hero */
 .hero {
@@ -313,9 +315,12 @@ main.page {
 .ring-track { stroke: var(--surface-3); }
 .ring-value { stroke: var(--warm); transition: stroke-dashoffset 600ms ease-out; }
 .ring-label {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-size: var(--fs-sm); font-weight: 650;
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1.15;
 }
+.ring-num { font-size: var(--fs-md); font-weight: 700; }
+.ring-of { font-size: 11px; color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .ring-value { transition: none; } }
 
 /* ------------------------------------------------------------------ main grid */
@@ -476,7 +481,7 @@ select {
 .scrubber { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
 .scrubber input[type="range"] { width: 100%; accent-color: var(--replay); height: 28px; }
 .scrubber-meta { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--fs-sm); color: var(--text-muted); flex-wrap: wrap; }
-.picker-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4); align-items: end; }
+.picker-row { display: grid; grid-template-columns: minmax(0, 560px) auto; gap: var(--space-4); align-items: end; }
 
 /* ------------------------------------------------------------------ placeholder and login */
 .placeholder { text-align: center; padding: var(--space-8) var(--space-5); }
@@ -509,11 +514,17 @@ select {
   .app-header { flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
   .brand { flex-basis: 100%; }
   .user-menu { margin-left: auto; }
-  .tabs { padding: 0 var(--space-3); }
+  .tabs {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0; padding: 0 var(--space-2);
+  }
+  .tabs a { text-align: center; padding: var(--space-3) var(--space-1); }
   .replay-banner { padding: var(--space-3) var(--space-4); }
   main.page { padding: var(--space-4); gap: var(--space-4); }
   .card { padding: var(--space-4); }
-  .hero-main { gap: var(--space-4); align-items: flex-start; }
+  .hero-main { gap: var(--space-4); align-items: flex-start; flex-wrap: wrap; }
+  .hero-text { flex: 1 1 200px; }
+  .ring { margin-left: 64px; }
   .state-icon { width: 48px; height: 48px; }
   .state-icon svg { width: 24px; height: 24px; }
   .state-label { font-size: var(--fs-2xl); }

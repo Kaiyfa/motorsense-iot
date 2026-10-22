@@ -76,7 +76,7 @@
       </div>
     </div>
     <dl class="hero-facts">
-      <div class="fact"><dt>In this state</dt><dd class="num" id="fact-1"><span class="skeleton">00 s</span></dd></div>
+      <div class="fact"><dt id="fact-1-label">In this state</dt><dd class="num" id="fact-1"><span class="skeleton">00 s</span></dd></div>
       <div class="fact"><dt id="fact-2-label">{% if mode == 'replay' %}Recorded at{% else %}Last reading{% endif %}</dt><dd class="num" id="fact-2"><span class="skeleton">00 s ago</span></dd></div>
       <div class="fact"><dt id="fact-3-label">{% if mode == 'replay' %}Position{% else %}Scorer{% endif %}</dt><dd class="num" id="fact-3"><span class="skeleton">Running</span></dd></div>
     </dl>
@@ -139,6 +139,9 @@
           </div>
         {% endfor %}
       </div>
+      <p class="card-note context" id="changes-context" hidden>
+        The baseline comes from running data. While the machine is idle or warming up, large deviations are expected.
+      </p>
       <p class="card-note" id="changes-note">
         Mean of the last 60 s minus the training mean, in training standard deviations
         (<span id="changes-scale">bar scale ±5 σ</span>). This is data, not a diagnosis.

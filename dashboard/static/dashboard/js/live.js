@@ -1,5 +1,5 @@
 // Live mode: polls the existing JSON endpoints every 2 s (paused while the tab is hidden).
-import { config, createOverview, describeState, computeChanges, episodesFromRows, getJSON, showError } from './overview.js';
+import { config, createOverview, describeState, computeChanges, episodesFromRows, getJSON, showError, STATE_NAMES } from './overview.js';
 import * as fmt from './format.js';
 
 const view = createOverview();
@@ -99,11 +99,16 @@ function heroFacts(status, state) {
   const offline = state.kind === 'offline' && state.label === 'Offline';
   let inState;
   if (offline) {
-    inState = age === null ? { value: '—' } : { value: fmt.duration(age), small: 'offline' };
-  } else if (status.seconds_in_state !== null) {
-    inState = { value: fmt.duration(status.seconds_in_state), small: `since ${fmt.clock(Date.parse(status.state_since))}` };
+    inState = age === null
+      ? { label: 'Offline for', value: '—' }
+      : { label: 'Offline for', value: fmt.duration(age), small: `since ${fmt.clock(lastMs)}` };
+  } else if (status.seconds_in_state !== null && status.machine_state) {
+    inState = {
+      label: `${STATE_NAMES[status.machine_state] || 'In this state'} for`,
+      value: fmt.duration(status.seconds_in_state), small: `since ${fmt.clock(Date.parse(status.state_since))}`,
+    };
   } else {
-    inState = { value: '—' };
+    inState = { label: 'In this state', value: '—' };
   }
   const last = age === null ? { value: 'Never' } : { value: fmt.ago(age), small: fmt.clock(lastMs) };
   const poll = status.scorer_last_poll_seconds_ago;
@@ -154,7 +159,8 @@ function render(status, scores, history) {
     vibration_rms: d.vibration_rms, vibration_peak: d.vibration_peak, current: d.current,
     bus_voltage: d.bus_voltage, temperature: d.temperature,
   };
-  view.renderChanges(computeChanges(readings, now), `No readings in the last ${config.changesWindowSeconds} s`);
+  view.renderChanges(computeChanges(readings, now), `No readings in the last ${config.changesWindowSeconds} s`,
+    status.machine_state);
   view.renderTiles(readings, now, 'No readings in the last 5 min');
 }
 
