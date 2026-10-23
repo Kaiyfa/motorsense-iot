@@ -74,7 +74,7 @@ sessions: 11.5 % for vibration RMS, 13.5 % for vibration peak and 1.1 % for curr
   - r3_test_loose (loose mount): RMS +8.2 % within it, peak +15.0 % above it.
 - **Friction by hand:** it raised the current by 0.9 % and 0.7 %, within its 1.1 % spread. Its 60 s runs are too short for a like-for-like vibration comparison.
 - **Frequency bands:** the four bands changed by -7.1 % to +6.4 % between an imbalance run and its reference, in both directions and within the band spreads (10.3 % to 36.7 %), so they did not separate the imbalance.
-- **Handling the rig:** the mechanical handling shifted the normal baseline of vibration RMS by 23.2 % (vibration peak 31.3 %) with no fault applied.
+- **Baseline shift between normal sessions:** vibration RMS differs by 23.2 % (vibration peak 31.3 %) between r2_normal_01 (20 Oct) and r3_normal_01 (21 Oct). Both are normal sessions with no fault applied. Fault experiments were done on the rig between them, including a coin screwed onto a motor shaft and removed again; `data/recordings/sessions.csv` lists the runs in between, such as r2_fault_imbalance_01 and r2_fault_imbalance_02. The cause of the shift is not established.
 
 With one to three short runs per fault and a baseline that moves this much, none of these faults
 could be evaluated reliably. This is why the evaluation is limited to the open motor lead,
@@ -198,7 +198,7 @@ leaves them out by default. More commands are in [docs/README.md](docs/README.md
 - **Ingest security:** readings travel over plain HTTP without TLS on a home network, so the bearer token is sent in clear text.
 - **Current:** it is not calibrated against a reference meter.
 - **Vibration sensor mounting:** the MPU-6050 sits on a breadboard that rests on the chassis and is not rigidly fixed.
-- **Baseline drift:** the vibration baseline shifts after the rig is handled (23.2 % in vibration RMS).
+- **Baseline drift:** vibration RMS differs by 23.2 % between two normal sessions (r2_normal_01 and r3_normal_01); the cause is not established.
 - **Faults and data:** one fault type was tested, and the test set is small (one normal and three fault sessions).
 - **Invalid session:** r5_normal_04 is invalid, and its cause is unknown.
 - **False alarms:** one bad vibration sample can raise an alert, because it stays in the 30-second window.
