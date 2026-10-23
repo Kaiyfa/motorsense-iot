@@ -191,8 +191,8 @@ on this fault, and the README will say so.
 ## Negative findings
 
 All numbers in this section are printed by `analysis/negative_findings.py`, run on the raw
-Pi CSV files (`python analysis/negative_findings.py ~/motorsense-raw-data`; the raw files
-are not in the repository), and are also in `results/negative_findings.json`. Values are
+Pi CSV files (`python analysis/negative_findings.py`, which reads the published recordings in
+`data/recordings/raw`), and are also in `results/negative_findings.json`. Values are
 plateau means ± sample standard deviation. Plateau: for sessions with a `_warmup` segment,
 all windows after it; for every other session, the last 90 windows. Percentages are the
 change of the test mean relative to the reference mean.

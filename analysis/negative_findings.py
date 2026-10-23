@@ -1,10 +1,10 @@
 """
 Reproduce the negative findings in docs/evaluation_plan.md from the raw Pi CSV logs.
 
-    python analysis/negative_findings.py ~/motorsense-raw-data
+    python analysis/negative_findings.py [--data DIR]
 
-The raw CSVs live outside the repository and are never committed. Only the
-Python standard library is used.
+By default it reads the published recordings in data/recordings/raw (the raw Pi
+CSV logs, copied unchanged). Only the Python standard library is used.
 
 Plateau rule, applied to every session:
   - a session that has a matching "<label>_warmup" segment (the long sessions):
@@ -288,12 +288,13 @@ def normal_spread(sessions):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('data_dir', help='Directory with the raw Pi CSV logs (e.g. ~/motorsense-raw-data)')
+    parser.add_argument('--data', default=str(Path(__file__).resolve().parents[1] / 'data' / 'recordings' / 'raw'),
+                        help='Directory with the raw Pi CSV logs (default: data/recordings/raw)')
     parser.add_argument('--json', default=str(Path(__file__).resolve().parents[1] / 'results' / 'negative_findings.json'),
                         help='Where to write the numbers as JSON (default: results/negative_findings.json)')
     args = parser.parse_args()
 
-    data_dir = Path(args.data_dir).expanduser()
+    data_dir = Path(args.data).expanduser()
     if not data_dir.is_dir():
         sys.exit(f'Not a directory: {data_dir}')
 

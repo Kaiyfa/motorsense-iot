@@ -296,6 +296,21 @@ class NegativeFindingsJsonTests(unittest.TestCase):
         cells = calc.finding_cells({'percent': {'vib_rms_g': 1.0, 'vib_peak_g': 2.0, 'current_ma': 0.0}})
         self.assertEqual(cells[-1]['text'], '—')
 
+    def test_published_recordings_reproduce_the_committed_json(self):
+        import hashlib
+        import subprocess
+        import sys
+        import tempfile
+        recordings = REPO / 'data' / 'recordings'
+        for line in (recordings / 'SHA256SUMS').read_text().splitlines():
+            digest, name = line.split(maxsplit=1)
+            self.assertEqual(hashlib.sha256((recordings / name).read_bytes()).hexdigest(), digest, name)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'nf.json'
+            subprocess.run([sys.executable, str(REPO / 'analysis' / 'negative_findings.py'), '--json', str(out)],
+                           check=True, capture_output=True)
+            self.assertEqual(out.read_bytes(), (REPO / 'results' / 'negative_findings.json').read_bytes())
+
     def test_committed_json_has_every_comparison(self):
         data = json.loads((REPO / 'results' / 'negative_findings.json').read_text())
         titles = [c['title'] for c in data['comparisons']]
