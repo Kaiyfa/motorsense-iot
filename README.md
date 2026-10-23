@@ -51,6 +51,33 @@ Tests: `python manage.py test` (needs the database from step 3; Django creates a
 test database). More commands, including replays and reproducing the evaluation, are in
 [docs/README.md](docs/README.md).
 
+## Try it without the rig
+
+The recorded sessions are in `data/recordings/` (see the README there). After steps 1 to 5:
+
+```
+python manage.py import_recordings          # the evaluation sessions and their warm-up rows
+python manage.py replay_session --label r5_normal_04_redo --label r5_normal_05 \
+    --label r5_fault_open_01 --label r5_fault_open_02 --label r5_fault_open_03
+python manage.py runserver
+```
+
+Open http://127.0.0.1:8000/, log in, switch to **Replay** in the header and pick a session.
+`import_recordings` prints what it loaded per label and leaves labels that already have
+different rows alone unless `--replace` is given. `--label` picks other sessions, and
+`--all-rows` includes rows that never reached the database.
+
+To check the replays against the evaluation:
+
+```
+python manage.py export_dataset                    # writes data/dataset/ from the imported rows
+python analysis/compare_replay_to_evaluation.py    # episodes and first alerts against results/metrics.json
+python analysis/compare_replay_scores.py           # every replayed score against a recomputation
+```
+
+`compare_replay_scores.py` also compares against `results/scores/` when it exists. That folder
+is written by `python -m dashboard.ml.run_evaluation` and is not committed.
+
 ## Layout
 - `dashboard/` - the Django app: models, ingest and JSON API, pages, scorer service
 - `dashboard/ml/` - dataset roles, evaluation, live scoring core
@@ -58,3 +85,5 @@ test database). More commands, including replays and reproducing the evaluation,
 - `analysis/` - scripts that reproduce figures in the docs
 - `docs/` - evaluation plan, how to reproduce, screenshots
 - `testbed/` - the logger that runs on the Raspberry Pi, and the rig's wiring
+- `data/recordings/` - the recorded sessions used by the evaluation and the negative findings
+- `models/motorsense_ae/` - the saved model the scorer uses

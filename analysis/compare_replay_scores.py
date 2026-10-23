@@ -8,7 +8,8 @@ scored by both (three-feature autoencoder, seed 0).
 
 Two references:
   (a) results/scores/<session>.csv, column ae_all_seed0, written by
-      run_evaluation with 6 significant digits;
+      run_evaluation with 6 significant digits (not committed; skipped and
+      reported when missing);
   (b) a full-precision recomputation: the saved model applied to the exported
       session with the evaluation's batch code path.
 Exit code 1 if any second differs beyond the reference's precision.
@@ -42,6 +43,7 @@ def main():
     detector = saved_model.load()
     sessions = ev.load_sessions('data/dataset')
     failed = False
+    skipped_a = []
     for label in SESSIONS:
         replay = {r.timestamp: r.score for r in AnomalyScore.objects.filter(
             mode='replay', run_label__in=[label + dataset.WARMUP_SUFFIX, label])}
@@ -50,12 +52,17 @@ def main():
             failed = True
             continue
 
-        # (a) evaluation CSV, 6 significant digits
+        # (a) evaluation CSV, 6 significant digits (skipped when results/scores/ is missing:
+        # it is written by run_evaluation and not committed)
         csv_scores = {}
-        with open(f'results/scores/{label}.csv', newline='') as f:
-            for row in csv.DictReader(f):
-                if row['ae_all_seed0']:
-                    csv_scores[datetime.fromisoformat(row['timestamp'])] = float(row['ae_all_seed0'])
+        csv_path = Path(f'results/scores/{label}.csv')
+        if csv_path.exists():
+            with csv_path.open(newline='') as f:
+                for row in csv.DictReader(f):
+                    if row['ae_all_seed0']:
+                        csv_scores[datetime.fromisoformat(row['timestamp'])] = float(row['ae_all_seed0'])
+        else:
+            skipped_a.append(label)
         both = [t for t in csv_scores if replay.get(t) is not None]
         # allowed: half a unit in the 6th significant digit (CSV rounding) plus float32
         # precision (the replayed float itself may differ by ~1e-7 from the evaluation's)
@@ -63,7 +70,7 @@ def main():
                       if abs(replay[t] - csv_scores[t]) >
                       0.5 * 10 ** (np.floor(np.log10(abs(csv_scores[t]))) - CSV_DIGITS + 1)
                       + FULL_PRECISION_RTOL * abs(csv_scores[t])]
-        rel_csv = max(abs(replay[t] - csv_scores[t]) / abs(csv_scores[t]) for t in both)
+        rel_csv = max((abs(replay[t] - csv_scores[t]) / abs(csv_scores[t]) for t in both), default=0.0)
 
         # (b) full-precision recomputation with the evaluation's batch path
         s = sessions[label]
@@ -74,15 +81,22 @@ def main():
         rel_full = np.abs(pairs[:, 0] - pairs[:, 1]) / np.abs(pairs[:, 1])
         identical = int(np.sum(pairs[:, 0] == pairs[:, 1]))
 
-        only_replay = [t for t, v in replay.items() if v is not None and t not in csv_scores]
+        only_replay = ([t for t, v in replay.items() if v is not None and t not in csv_scores]
+                       if csv_scores else [])
         only_eval = [t for t in csv_scores if replay.get(t) is None]
         bad = bool(beyond_csv) or rel_full.max() > FULL_PRECISION_RTOL or bool(only_replay)
         failed |= bad
-        print(f"{label:18} scored by both {len(both):3} | (a) CSV: {len(beyond_csv)} beyond 6-digit rounding, "
-              f"max rel diff {rel_csv:.2e} | (b) full precision: {identical}/{len(pairs)} bit-identical, "
+        part_a = (f"(a) CSV: {len(beyond_csv)} beyond 6-digit rounding, max rel diff {rel_csv:.2e}"
+                  if csv_scores else '(a) CSV: not checked, results/scores/ missing')
+        print(f"{label:18} scored by both {len(both):3} | {part_a} "
+              f"| (b) full precision: {identical}/{len(pairs)} bit-identical, "
               f"max rel diff {rel_full.max():.2e} | scored only by replay {len(only_replay)}, "
               f"only by evaluation {len(only_eval)}{'  <-- MISMATCH' if bad else ''}")
-    print('\nRESULT:', 'MISMATCH' if failed else 'all shared seconds equal within float precision')
+    if skipped_a:
+        print(f"\n(a) not checked for {', '.join(skipped_a)}: results/scores/ is written by run_evaluation and "
+              f"not committed; (b) was checked.")
+    print('\nRESULT:', 'MISMATCH' if failed else 'all shared seconds equal within float precision'
+          + (' (full-precision recomputation only)' if len(skipped_a) == len(SESSIONS) else ''))
     return 1 if failed else 0
 
 
