@@ -14,6 +14,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
+# The testbed photo shown in the README
+!docs/media/
 staticfiles/
 
 # ML Models & Data
