@@ -67,12 +67,16 @@ From `results/negative_findings.json` (`python analysis/negative_findings.py`). 
 compared only between runs in the same phase, and against the spread between the five normal
 sessions: 11.5 % for vibration RMS, 13.5 % for vibration peak and 1.1 % for current.
 
-- **Imbalance and loose mounting:** taped weights and a loosened motor mount changed vibration RMS by +0.3 % to +16.8 % and vibration peak by +2.6 % to +19.1 %. Three values are above the spread: both vibration values of one of the two imbalance runs (RMS +16.8 %, peak +19.1 %) and the peak of the loose-mount run (+15.0 %). The other imbalance run and the loose-mount RMS are within it.
+- **Imbalance and loose mounting:** three imbalance runs (taped weights) and one loose-mount run, each against its like-for-like reference. 3 of the 8 RMS and peak values are above the spread:
+  - r3_test_fault (imbalance): RMS +16.8 % and peak +19.1 %, both above the spread.
+  - r3_test_fault2 (imbalance): RMS +8.4 % and peak +10.7 %, both within it.
+  - r4_band_fault_a (imbalance): RMS +0.3 % and peak +2.6 %, both within it.
+  - r3_test_loose (loose mount): RMS +8.2 % within it, peak +15.0 % above it.
 - **Friction by hand:** it raised the current by 0.9 % and 0.7 %, within its 1.1 % spread. Its 60 s runs are too short for a like-for-like vibration comparison.
 - **Frequency bands:** the four bands changed by -7.1 % to +6.4 % between an imbalance run and its reference, in both directions and within the band spreads (10.3 % to 36.7 %), so they did not separate the imbalance.
 - **Handling the rig:** the mechanical handling shifted the normal baseline of vibration RMS by 23.2 % (vibration peak 31.3 %) with no fault applied.
 
-With one or two short runs per fault and a baseline that moves this much, none of these faults
+With one to three short runs per fault and a baseline that moves this much, none of these faults
 could be evaluated reliably. This is why the evaluation is limited to the open motor lead,
 which dropped the current by 14.6 %.
 
