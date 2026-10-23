@@ -91,7 +91,7 @@ Asia/Riyadh (UTC+3). Captions and all screenshots are in
 2. **02:59:25 False alarm** (21 s, peak score 5.03; `live_rig_false_alarm.png`, `live_rig_sensors.png`). One second had a vibration peak of 1.0214 g while the vibration RMS was 0.1475 g, with no I2C errors in that second. This is probably a single bad sample out of 200; the cause is not established.
    - **The weakness it shows:** a one-second outlier stays inside the 30-second scoring window for about 30 s. That is long enough to pass the 10-second rule.
 3. **03:15** Idle before the next run (`live_rig_idle.png`).
-4. **03:19:04 Unexplained alert** (1 min 00 s, score about 9 to 10). It came during handling of the rig; the cause was not recorded.
+4. **03:19:04 Alert** (1 min 00 s). In that run the score was between 8.67 and 10.43, above the threshold 2.95, in every scored second from the first one at 03:18:55. The alert ended at 03:20:04, when the current fell to 0.001 A and the state changed to Idle. The cause was not recorded.
 5. **03:21:39 Motor lead disconnected** (`live_rig_after_disconnect.png`). Current at -96.9 sigma in the last 60 s, before the new sequence was scored.
 6. **03:21:51 Alert** (`live_rig_alert.png`): score 212 against 2.95, largest deviation current at -23.6 sigma (baseline 0.818 A, latest 0.725 A).
 7. **Alerts tab** with the three episodes (`live_rig_alerts_tab.png`).
