@@ -318,6 +318,26 @@ class NegativeFindingsJsonTests(unittest.TestCase):
         self.assertNotIn('/Users/', json.dumps(data))
 
 
+class SavedModelFilesTests(unittest.TestCase):
+    def test_the_scorer_and_the_evaluation_use_the_committed_model(self):
+        import hashlib
+        import re
+        from dashboard.ml import run_evaluation, saved_model
+        model_dir = REPO / 'models' / 'motorsense_ae'
+        self.assertEqual(saved_model.DEFAULT_MODEL_DIR, model_dir)
+        parser_default = re.search(r"'--models', default='([^']+)'", Path(run_evaluation.__file__).read_text()).group(1)
+        self.assertEqual(REPO / parser_default, model_dir)
+        readme = (model_dir / 'README.md').read_text()
+        for name in ('model.keras', 'scaler.json', 'threshold.json'):
+            digest = hashlib.sha256((model_dir / name).read_bytes()).hexdigest()
+            self.assertIn(f'`{name}`', readme)
+            self.assertIn(digest, readme)
+        scaler, threshold, _ = saved_model.read_metadata()
+        metrics = json.loads((REPO / 'results' / 'metrics.json').read_text())
+        self.assertEqual(threshold, metrics['methods']['ae_all']['seeds']['0']['threshold'])
+        self.assertEqual(set(scaler), {'vib_rms_g', 'vib_peak_g', 'current'})
+
+
 class DateFormatTests(SimpleTestCase):
     def test_one_format_in_the_display_time_zone(self):
         from dashboard import formats

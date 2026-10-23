@@ -12,7 +12,7 @@ from typing import Callable
 from dashboard.ml import dataset
 from dashboard.ml.constants import ALERT_SECONDS, SEQUENCE_LENGTH
 
-DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / 'ml_models' / 'motorsense_ae'
+DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / 'models' / 'motorsense_ae'
 
 
 @dataclass

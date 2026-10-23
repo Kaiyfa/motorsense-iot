@@ -1,0 +1,14 @@
+{
+  "threshold": 2.9486190521717073,
+  "percentile": 99.5,
+  "set_on": "r5_normal_04_redo",
+  "sequence_length": 30,
+  "alert_seconds": 10,
+  "seed": 0,
+  "features": [
+    "vib_rms_g",
+    "vib_peak_g",
+    "current"
+  ],
+  "git_commit": "222c4ef621c9896ca06acda49dec3ec3236a700f"
+}

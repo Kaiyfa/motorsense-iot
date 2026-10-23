@@ -15,7 +15,7 @@ clone can run the tests but not the training.
 | Step | Command | Output |
 |---|---|---|
 | 1. Export the sessions from the database | `python manage.py export_dataset` | `data/dataset/{train,validation,test_normal,test_fault}.csv`, `data/dataset/manifest.json` (not committed) |
-| 2. Train and evaluate all detectors | `python -m dashboard.ml.run_evaluation` | `results/metrics.json` (committed), `results/scores/<session>.csv` (not committed), `ml_models/motorsense_ae/` (three-feature model, seed 0: `model.keras`, `scaler.json`, `threshold.json`; not committed) |
+| 2. Train and evaluate all detectors | `python -m dashboard.ml.run_evaluation` | `results/metrics.json` (committed), `results/scores/<session>.csv` (not committed), `models/motorsense_ae/` (three-feature model, seed 0: `model.keras`, `scaler.json`, `threshold.json`; committed, so a rerun shows up in `git diff`) |
 | 3. Negative findings from the raw Pi logs | `python analysis/negative_findings.py` (reads `data/recordings/raw`; `--data DIR` for another folder) | Printed tables and `results/negative_findings.json` |
 | Tests | `python manage.py test` | Includes the database-free tests below |
 | Tests without Django or TensorFlow | `python -m unittest dashboard.tests_dataset dashboard.tests_evaluation` | |
@@ -102,7 +102,7 @@ Screenshots of each state are in [screenshots/](screenshots/README.md).
 
 ## Live scoring and alerts
 
-The live scorer applies the saved three-feature autoencoder (seed 0, `ml_models/motorsense_ae/`)
+The live scorer applies the saved three-feature autoencoder (seed 0, `models/motorsense_ae/`)
 to new readings. It is a separate process, so the web server never runs the model; it
 reuses the evaluation's own functions (scaling, sequence building, score, threshold
 comparison and alert rule), and the shared settings live in one place,

@@ -40,6 +40,8 @@ ml_models/*
 !data/.gitkeep
 # Published recordings (data/recordings/README.md)
 !data/recordings/
+# The published seed-0 model (models/motorsense_ae/README.md)
+!models/motorsense_ae/*.keras
 # Exported evaluation dataset (python manage.py export_dataset)
 data/dataset/
 

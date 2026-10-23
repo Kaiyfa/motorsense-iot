@@ -45,11 +45,7 @@ support newer versions) and Docker. All commands run from the repository root.
 7. Readings arrive from the Pi at `/api/ingest/` with the bearer token from `.env` (see
    [testbed/README.md](testbed/README.md)). The first reading creates the equipment EQ-001.
 8. Live scorer, in a second terminal: `python manage.py score_live --equipment EQ-001`. It
-   needs the trained model in `ml_models/motorsense_ae/` (`model.keras`, `scaler.json`,
-   `threshold.json`). The model is not in the repository. `python -m dashboard.ml.run_evaluation`
-   produces it from the dataset that `export_dataset` exports from a database holding the
-   recorded sessions, and those recordings are not in the repository either. Without the model,
-   the command stops with "No such file or directory: ... ml_models/motorsense_ae/scaler.json".
+   uses the saved model in `models/motorsense_ae/` (see the README there).
 
 Tests: `python manage.py test` (needs the database from step 3; Django creates and drops its own
 test database). More commands, including replays and reproducing the evaluation, are in
