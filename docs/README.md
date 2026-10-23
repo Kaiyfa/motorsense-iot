@@ -7,13 +7,16 @@ existed; `git log -- docs/evaluation_plan.md` shows the order.
 ## Reproducing the results
 
 All commands run from the repository root with the project venv active
-(`source venv/bin/activate`). The database settings come from `.env` (see `.env.example`).
+(`source venv/bin/activate`) and both `requirements.txt` and `requirements-ml.txt` installed
+(see the main README). The database settings come from `.env` (see `.env.example`). Steps 1
+and 2 need the recorded sessions in the database; they are not in the repository, so a fresh
+clone can run the tests but not the training.
 
 | Step | Command | Output |
 |---|---|---|
 | 1. Export the sessions from the database | `python manage.py export_dataset` | `data/dataset/{train,validation,test_normal,test_fault}.csv`, `data/dataset/manifest.json` (not committed) |
-| 2. Train and evaluate all detectors | `python -m dashboard.ml.run_evaluation` | `results/metrics.json` (committed), `results/scores/<session>.csv` (not committed), `ml_models/motorsense_ae/` (three-feature model, seed 0: `model.keras`, `scaler.json`, `threshold.json`; not committed) |
-| 3. Negative findings from the raw Pi logs | `python analysis/negative_findings.py ~/motorsense-raw-data` | Printed tables; the raw CSVs stay outside the repository |
+| 2. Train and evaluate all detectors | `python -m dashboard.ml.run_evaluation` | `results/metrics.json` (committed), `results/scores/<session>.csv` (not committed), `models/motorsense_ae/` (three-feature model, seed 0: `model.keras`, `scaler.json`, `threshold.json`; committed, so a rerun shows up in `git diff`) |
+| 3. Negative findings from the raw Pi logs | `python analysis/negative_findings.py` (reads `data/recordings/raw`; `--data DIR` for another folder) | Printed tables and `results/negative_findings.json` |
 | Tests | `python manage.py test` | Includes the database-free tests below |
 | Tests without Django or TensorFlow | `python -m unittest dashboard.tests_dataset dashboard.tests_evaluation` | |
 
@@ -51,8 +54,7 @@ changed" panel (mean of the last 60 s of each model feature minus the training m
 training standard deviations; data, not a diagnosis) and tiles for the five sensors with
 5-minute sparklines. Live polls the JSON API every 2 s and pauses while the browser tab is
 hidden. Replay plays the recording at 1x, 10x or 30x with a scrubber; `?session=<label>&pos=<n>`
-links to a position. The tabs Sensors, Alerts, Maintenance, Evaluation and Setup are
-placeholders for part 2.
+links to a position. The other tabs are described under Tabs below.
 
 Removed in the rebuild: the simulated mode and its endpoints (`/api/prediction/`,
 `/api/equipment/`, `/api/`, `/api/live/prediction/`, `/live/`), the C-MAPSS prediction service
@@ -79,7 +81,7 @@ and the strip stop at the playhead unless "Show whole session" is ticked.
 | Sensors | A trend chart per sensor with minimum, mean and maximum over the range (Live: 5 min, 30 min, 2 h, 24 h; Replay: the recorded session up to the Overview's playhead); data quality (rows, readings per minute, gaps above 5 s, time since the last reading); "Download CSV for this range" | Stored `sensor_data` rows. Charts draw at most 1200 points per series (minimum and maximum of each slice); the statistics and the CSV use every row |
 | Alerts | Alert episodes (Live by default; Replay rows carry the replay label and session name) with start, duration, peak score, status, run label and the largest deviation in the 60 s before the start; a row expands to the score 2 min either side of the start and the three deviations | `alert_episodes`, `anomaly_scores`, `sensor_data`; the deviation is the "What changed" calculation (`dashboard/calculations.py`) |
 | Maintenance | Operator log (inspection, repair, replacement, other) with add and delete-own; an inspection interval per equipment; "Next inspection due" (last logged inspection plus the interval, labelled "Set by the operator. Not a prediction."); live alerts without a logged inspection afterwards | `maintenance_entries`, `inspection_intervals` (migration 0006), `alert_episodes` |
-| Evaluation | The scope caveat, per-second and per-session tables for the five detectors with the seed spread, statements derived from the numbers, the negative findings, score small multiples for the validation and test sessions, the environment | `results/metrics.json`, `results/negative_findings.json` (written by `python analysis/negative_findings.py <raw data dir>`), and the evaluation's score files in `results/scores/` (not committed; without them the small multiples say so) |
+| Evaluation | The scope caveat, per-second and per-session tables for the five detectors with the seed spread, statements derived from the numbers, the negative findings, score small multiples for the validation and test sessions, the environment | `results/metrics.json`, `results/negative_findings.json` (written by `python analysis/negative_findings.py`), and the evaluation's score files in `results/scores/` (not committed; without them the small multiples say so) |
 | Setup | The testbed and sensors, a pipeline diagram, model inputs, machine states, the alert rule, data retention and known limitations | `dashboard/ml/constants.py` and the evaluation plan |
 
 The testbed photo (`docs/media/testbed_photo.jpg`) is not in the repository; the Setup tab
@@ -100,7 +102,7 @@ Screenshots of each state are in [screenshots/](screenshots/README.md).
 
 ## Live scoring and alerts
 
-The live scorer applies the saved three-feature autoencoder (seed 0, `ml_models/motorsense_ae/`)
+The live scorer applies the saved three-feature autoencoder (seed 0, `models/motorsense_ae/`)
 to new readings. It is a separate process, so the web server never runs the model; it
 reuses the evaluation's own functions (scaling, sequence building, score, threshold
 comparison and alert rule), and the shared settings live in one place,

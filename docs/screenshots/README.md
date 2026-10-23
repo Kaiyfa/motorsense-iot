@@ -1,5 +1,9 @@
 # Dashboard screenshots
 
+Screenshots from the real rig (single demonstration runs on 23 Oct 2026, not part of the
+evaluation) are in [live_rig/](live_rig/README.md). Everything below was captured with recorded
+data.
+
 Captured on 2026-10-22 at 1440 px and 390 px width, dark theme, with headless Google Chrome
 156 driven over the Chrome DevTools protocol (Playwright was not installed), browser cache
 disabled. Code: idle and warm-up as of commit `69dd450`; the other shots as of `e28b142`.

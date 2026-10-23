@@ -178,6 +178,9 @@ All methods are reported in one table.
 | Per-session scores | `results/scores/`, not committed |
 | Model, scaler values and threshold of the three-feature model, seed 0 | `ml_models/motorsense_ae/`, not committed; the older files in `ml_models/` are left untouched |
 
+Note added on 2026-10-23: these three files are now committed under `models/motorsense_ae/`
+(unchanged, with their SHA-256), and the evaluation and the scorer use that folder by default.
+
 The environment is the project venv: Python 3.10.13, tensorflow-macos 2.13.0, keras 2.13.1.
 The venv also lists a `tensorflow 2.20.0` package; it is not the one imported
 (`import tensorflow` gives 2.13.0). The installation is left as it is.
@@ -191,8 +194,8 @@ on this fault, and the README will say so.
 ## Negative findings
 
 All numbers in this section are printed by `analysis/negative_findings.py`, run on the raw
-Pi CSV files (`python analysis/negative_findings.py ~/motorsense-raw-data`; the raw files
-are not in the repository), and are also in `results/negative_findings.json`. Values are
+Pi CSV files (`python analysis/negative_findings.py`, which reads the published recordings in
+`data/recordings/raw`), and are also in `results/negative_findings.json`. Values are
 plateau means ± sample standard deviation. Plateau: for sessions with a `_warmup` segment,
 all windows after it; for every other session, the last 90 windows. Percentages are the
 change of the test mean relative to the reference mean.

@@ -243,6 +243,20 @@ def _has_valid_ingest_token(request):
     return hmac.compare_digest(token.strip().encode(), settings.INGEST_TOKEN.encode())
 
 
+def live_equipment():
+    """EQ-001, created with these defaults by the first reading (ingest or import_recordings)."""
+    equipment, _ = Equipment.objects.get_or_create(
+        equipment_id=LIVE_EQUIPMENT_ID,
+        defaults={
+            'name': LIVE_EQUIPMENT_NAME,
+            'equipment_type': 'MOTOR',
+            'location': 'Test bench',
+            'installation_date': timezone.now().date(),
+        },
+    )
+    return equipment
+
+
 @csrf_exempt
 @require_POST
 def ingest(request):
@@ -307,15 +321,7 @@ def ingest(request):
         return _ingest_error('label must be a string of at most 64 characters')
 
     if equipment_id == LIVE_EQUIPMENT_ID:
-        equipment, _ = Equipment.objects.get_or_create(
-            equipment_id=LIVE_EQUIPMENT_ID,
-            defaults={
-                'name': LIVE_EQUIPMENT_NAME,
-                'equipment_type': 'MOTOR',
-                'location': 'Test bench',
-                'installation_date': timezone.now().date(),
-            },
-        )
+        equipment = live_equipment()
     else:
         equipment = Equipment.objects.filter(equipment_id=equipment_id).first()
         if equipment is None:

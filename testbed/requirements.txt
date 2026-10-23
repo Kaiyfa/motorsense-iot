@@ -1,0 +1,5 @@
+# Packages imported by testbed/logger.py (Raspberry Pi, Python 3.13 in a venv).
+# The versions installed on the Pi were not recorded, so they are not pinned (unverified).
+smbus2
+requests
+numpy

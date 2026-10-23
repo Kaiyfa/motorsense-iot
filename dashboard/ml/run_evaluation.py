@@ -2,11 +2,11 @@
 Train and evaluate every detector as fixed in docs/evaluation_plan.md.
 
     python -m dashboard.ml.run_evaluation [--data data/dataset] [--results results]
-                                          [--models ml_models/motorsense_ae]
+                                          [--models models/motorsense_ae]
 
 Writes results/metrics.json, results/scores/<session>.csv and, for the
 three-feature autoencoder with seed 0, the model, scaler and threshold in
-ml_models/motorsense_ae/. No setting here may change after results are seen.
+models/motorsense_ae/. No setting here may change after results are seen.
 """
 import argparse
 import csv
@@ -300,7 +300,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--data', default='data/dataset')
     parser.add_argument('--results', default='results')
-    parser.add_argument('--models', default='ml_models/motorsense_ae')
+    parser.add_argument('--models', default='models/motorsense_ae')
     args = parser.parse_args(argv)
 
     git = git_state()

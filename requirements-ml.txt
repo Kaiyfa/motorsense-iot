@@ -1,0 +1,17 @@
+# Live scorer (manage.py score_live, replay_session), training and evaluation
+# (python -m dashboard.ml.run_evaluation). Install on top of the web requirements:
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# Tested only on macOS arm64 (Apple silicon) with Python 3.10.13; results/metrics.json was
+# produced with exactly these versions. Other platforms need a different TensorFlow
+# package (for example tensorflow==2.13.* on Linux or Intel instead of tensorflow-macos),
+# which was not tested here.
+-r requirements.txt
+numpy==1.24.3
+tensorflow-macos==2.13.0
+keras==2.13.1
+h5py==3.15.1
+# tensorflow-macos 2.13 requires typing-extensions below 4.6
+typing-extensions==4.5.0
+# tensorflow-metal==1.0.1 was installed when the results were produced, but the GPU was hidden
+# (CPU only, see results/metrics.json), so it is not needed.

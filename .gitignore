@@ -14,6 +14,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
+# The testbed photo shown in the README
+!docs/media/
 staticfiles/
 
 # ML Models & Data
@@ -38,8 +40,16 @@ Thumbs.db
 data/*
 ml_models/*
 !data/.gitkeep
+# Published recordings (data/recordings/README.md)
+!data/recordings/
+# The published seed-0 model (models/motorsense_ae/README.md)
+!models/motorsense_ae/*.keras
 # Exported evaluation dataset (python manage.py export_dataset)
 data/dataset/
 
 # Evaluation outputs: per-session score files are not committed (metrics.json is)
 results/scores/
+
+# Database dumps and backups: never commit
+*.sql
+*.dump

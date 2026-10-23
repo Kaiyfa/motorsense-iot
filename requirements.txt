@@ -1,7 +1,10 @@
-asgiref==3.10.0
+# Web app and ingest endpoint (Django). No TensorFlow: the web server never loads the model.
+# Pinned to the versions in the project venv (Python 3.10.13).
 Django==4.2
+asgiref==3.10.0
+sqlparse==0.5.3
 djangorestframework==3.16.1
 psycopg2-binary==2.9.11
 python-decouple==3.8
-sqlparse==0.5.3
-typing_extensions==4.15.0
+# imported by the ingest_sensor_data management command
+requests==2.32.5

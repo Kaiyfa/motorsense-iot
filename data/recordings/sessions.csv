@@ -1,0 +1,55 @@
+label,status,role,rows,rows_in_database,date_utc,first_timestamp_utc,last_timestamp_utc,file,band_columns
+bench_test,"development test, not published",,20,,2026-10-13,,,,
+mount_test,"development test, not published",,40,,2026-10-13,,,,
+link_test,"development test, not published",,60,,2026-10-19,,,,
+normal_00,"development test, not published",,206,,2026-10-19,,,,
+dryrun_02,"development test, not published",,180,,2026-10-19,,,,
+warmup_01,"development test, not published",,600,,2026-10-20,,,,
+normal_01_warmup,"development test, not published",,120,,2026-10-20,,,,
+normal_01,"development test, not published",,480,,2026-10-20,,,,
+labeltest_01_warmup,"development test, not published",,60,,2026-10-20,,,,
+labeltest_01,"development test, not published",,6,,2026-10-20,,,,
+r2_check,"development test, not published",,90,,2026-10-20,,,,
+r2_normal_01_warmup,published,excluded: warm-up,120,120,2026-10-20,2026-10-20T18:32:25.707809+00:00,2026-10-20T18:34:25.144520+00:00,log_20261020T183224Z.csv,no
+r2_normal_01,published,"negative findings: baseline shift, reference",480,479,2026-10-20,2026-10-20T18:34:26.148646+00:00,2026-10-20T18:42:26.978208+00:00,log_20261020T183224Z.csv,no
+r2_check2,"development test, not published",,90,,2026-10-20,,,,
+r2_fault_imbalance_01_warmup,"development test, not published",,120,,2026-10-20,,,,
+r2_fault_imbalance_01,"development test, not published",,300,,2026-10-20,,,,
+r2_test_imbalance,"development test, not published",,90,,2026-10-20,,,,
+r2_test_imbalance2,"development test, not published",,262,,2026-10-20,,,,
+r2_fault_imbalance_02_warmup,"development test, not published",,120,,2026-10-20,,,,
+r2_fault_imbalance_02,"development test, not published",,300,,2026-10-20,,,,
+r2_normal_02_warmup,"development test, not published",,141,,2026-10-20,,,,
+r2_normal_02,"development test, not published",,480,,2026-10-20,,,,
+r2_test_baseline,published,"negative findings: imbalance and loose mount, reference",180,163,2026-10-21,2026-10-21T09:49:22.670959+00:00,2026-10-21T09:52:22.275344+00:00,log_20261021T094921Z.csv,no
+r3_normal_01_warmup,published,excluded: warm-up,240,240,2026-10-21,2026-10-21T10:01:24.176361+00:00,2026-10-21T10:05:24.029768+00:00,log_20261021T100122Z.csv,no
+r3_normal_01,published,"negative findings: baseline shift, test",540,539,2026-10-21,2026-10-21T10:05:25.033426+00:00,2026-10-21T10:14:25.950982+00:00,log_20261021T100122Z.csv,no
+r3_test_fault,published,negative findings: imbalance,180,180,2026-10-21,2026-10-21T10:33:03.939793+00:00,2026-10-21T10:36:03.549881+00:00,log_20261021T103302Z.csv,no
+r3_test_fault2,published,negative findings: imbalance,180,179,2026-10-21,2026-10-21T10:45:09.621072+00:00,2026-10-21T10:48:09.263639+00:00,log_20261021T104508Z.csv,no
+r3_test_loose,published,negative findings: loosened motor mount,180,179,2026-10-21,2026-10-21T10:54:04.441483+00:00,2026-10-21T10:57:04.093064+00:00,log_20261021T105403Z.csv,no
+band_smoke,"development test, not published",,20,,2026-10-21,,,,
+r4_band_normal_a,published,"negative findings: reference (also baseline shift, test)",240,0,2026-10-21,2026-10-21T11:10:40.544306+00:00,2026-10-21T11:14:40.721639+00:00,log_20261021T111039Z.csv,yes
+r4_band_fault_a,published,"negative findings: imbalance, frequency bands",240,0,2026-10-21,2026-10-21T11:21:41.365525+00:00,2026-10-21T11:25:41.631065+00:00,log_20261021T112140Z.csv,yes
+r4_test_drag,published,"negative findings: former reference, no longer used",180,0,2026-10-21,2026-10-21T11:32:29.240038+00:00,2026-10-21T11:35:29.173315+00:00,log_20261021T113227Z.csv,yes
+r4_tune,published,negative findings: friction by hand,60,0,2026-10-21,2026-10-21T11:40:31.555733+00:00,2026-10-21T11:41:30.865879+00:00,log_20261021T114030Z.csv,yes
+r4_tune2,published,negative findings: friction by hand,60,0,2026-10-21,2026-10-21T11:48:36.588942+00:00,2026-10-21T11:49:35.902458+00:00,log_20261021T114835Z.csv,yes
+r4_test_open,published,negative findings: open motor lead,180,0,2026-10-21,2026-10-21T11:56:18.104946+00:00,2026-10-21T11:59:17.954391+00:00,log_20261021T115616Z.csv,yes
+r5_fault_open_01_warmup,published,excluded: warm-up,180,153,2026-10-21,2026-10-21T13:12:41.337609+00:00,2026-10-21T13:15:41.269887+00:00,log_20261021T131240Z.csv,yes
+r5_fault_open_01,published,"evaluation: test, fault",480,479,2026-10-21,2026-10-21T13:15:42.276093+00:00,2026-10-21T13:23:43.906510+00:00,log_20261021T131240Z.csv,yes
+r5_normal_01_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T13:51:03.662565+00:00,2026-10-21T13:54:03.668513+00:00,log_20261021T135102Z.csv,yes
+r5_normal_01,published,evaluation: training,480,480,2026-10-21,2026-10-21T13:54:04.674717+00:00,2026-10-21T14:02:06.202771+00:00,log_20261021T135102Z.csv,yes
+r5_fault_open_02_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T14:29:08.786212+00:00,2026-10-21T14:32:08.637514+00:00,log_20261021T142907Z.csv,yes
+r5_fault_open_02,published,"evaluation: test, fault",480,479,2026-10-21,2026-10-21T14:32:09.643006+00:00,2026-10-21T14:40:10.980079+00:00,log_20261021T142907Z.csv,yes
+r5_normal_02_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T15:32:56.083515+00:00,2026-10-21T15:35:56.017196+00:00,log_20261021T153254Z.csv,yes
+r5_normal_02,published,evaluation: training,480,479,2026-10-21,2026-10-21T15:35:57.023423+00:00,2026-10-21T15:43:58.659533+00:00,log_20261021T153254Z.csv,yes
+r5_normal_03_warmup,published,excluded: warm-up,210,210,2026-10-21,2026-10-21T16:14:36.488393+00:00,2026-10-21T16:18:44.658738+00:00,log_20261021T161435Z.csv;log_20261021T161543Z.csv,yes
+r5_normal_03,published,evaluation: training,480,479,2026-10-21,2026-10-21T16:18:45.661222+00:00,2026-10-21T16:26:47.172533+00:00,log_20261021T161543Z.csv,yes
+r5_fault_open_03_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T17:05:45.806373+00:00,2026-10-21T17:08:45.732212+00:00,log_20261021T170544Z.csv,yes
+r5_fault_open_03,published,"evaluation: test, fault",480,479,2026-10-21,2026-10-21T17:08:46.738411+00:00,2026-10-21T17:16:48.292069+00:00,log_20261021T170544Z.csv,yes
+r5_normal_04_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T20:51:44.469121+00:00,2026-10-21T20:54:44.797849+00:00,log_20261021T205143Z.csv,yes
+r5_normal_04,published,excluded: invalid session,480,322,2026-10-21,2026-10-21T20:54:45.804004+00:00,2026-10-21T21:02:48.264833+00:00,log_20261021T205143Z.csv,yes
+r5_check,published,excluded: recorded with --no-post,60,0,2026-10-21,2026-10-21T21:26:36.862029+00:00,2026-10-21T21:27:36.167702+00:00,log_20261021T212635Z.csv,yes
+r5_normal_04_redo_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T21:32:57.589646+00:00,2026-10-21T21:35:57.541867+00:00,log_20261021T213256Z.csv,yes
+r5_normal_04_redo,published,evaluation: validation,480,479,2026-10-21,2026-10-21T21:35:58.548000+00:00,2026-10-21T21:44:00.116953+00:00,log_20261021T213256Z.csv,yes
+r5_normal_05_warmup,published,excluded: warm-up,180,180,2026-10-21,2026-10-21T21:49:26.776765+00:00,2026-10-21T21:52:26.730768+00:00,log_20261021T214925Z.csv,yes
+r5_normal_05,published,"evaluation: test, normal",480,479,2026-10-21,2026-10-21T21:52:27.736670+00:00,2026-10-21T22:00:29.305868+00:00,log_20261021T214925Z.csv,yes
