@@ -27,7 +27,9 @@ support newer versions) and Docker. All commands run from the repository root.
    pip install -r requirements.txt
    pip install -r requirements-ml.txt   # only for the live scorer, training and evaluation
    ```
-   `requirements-ml.txt` was tested on macOS arm64 only; see the note in the file.
+   `requirements-ml.txt` was tested on macOS arm64 only; see the note in the file. On that
+   platform with Python 3.10, add `-c constraints-macos-arm64-py310.txt` to both commands to get
+   exactly the versions that produced the results (every package, including dependencies).
 2. Copy `.env.example` to `.env` and set `SECRET_KEY`, `INGEST_TOKEN` and `DB_PASSWORD` (the
    file shows how to generate the first two).
 3. Start TimescaleDB: `docker compose up -d`. This creates the container
