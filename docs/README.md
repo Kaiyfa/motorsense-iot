@@ -7,7 +7,10 @@ existed; `git log -- docs/evaluation_plan.md` shows the order.
 ## Reproducing the results
 
 All commands run from the repository root with the project venv active
-(`source venv/bin/activate`). The database settings come from `.env` (see `.env.example`).
+(`source venv/bin/activate`) and both `requirements.txt` and `requirements-ml.txt` installed
+(see the main README). The database settings come from `.env` (see `.env.example`). Steps 1
+and 2 need the recorded sessions in the database; they are not in the repository, so a fresh
+clone can run the tests but not the training.
 
 | Step | Command | Output |
 |---|---|---|
@@ -51,8 +54,7 @@ changed" panel (mean of the last 60 s of each model feature minus the training m
 training standard deviations; data, not a diagnosis) and tiles for the five sensors with
 5-minute sparklines. Live polls the JSON API every 2 s and pauses while the browser tab is
 hidden. Replay plays the recording at 1x, 10x or 30x with a scrubber; `?session=<label>&pos=<n>`
-links to a position. The tabs Sensors, Alerts, Maintenance, Evaluation and Setup are
-placeholders for part 2.
+links to a position. The other tabs are described under Tabs below.
 
 Removed in the rebuild: the simulated mode and its endpoints (`/api/prediction/`,
 `/api/equipment/`, `/api/`, `/api/live/prediction/`, `/live/`), the C-MAPSS prediction service
